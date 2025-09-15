@@ -186,6 +186,11 @@ in {
       touch /var/lib/sensor-bootstrap-complete
       touch /var/lib/bootstrap-complete
 
+      # PERSISTENCE TEST - Create unique marker that should survive reboots
+      echo "REMOTE CONFIG APPLIED: $(date)" > /var/lib/remote-config-applied
+      echo "This file proves the remote nixos-pi-configs was successfully applied" >> /var/lib/remote-config-applied
+      echo "Generation: $(nixos-rebuild list-generations | head -1)" >> /var/lib/remote-config-applied
+
       # Log final status
       echo "🎉 Bootstrap completed successfully at $(date)" >> /var/log/sensor-bootstrap.log
       echo "📊 System ready for sensor data collection" >> /var/log/sensor-bootstrap.log
@@ -194,6 +199,20 @@ in {
       echo "🚀 Sensor configuration bootstrap completed successfully!"
       echo "📝 Check /var/log/bootstrap-test.log for package verification"
       echo "📝 Check /var/log/sensor-bootstrap.log for completion status"
+      echo "📝 PERSISTENCE TEST: Check /var/lib/remote-config-applied after reboot"
     '';
+  };
+
+  # Add a custom environment variable to test persistence
+  environment.variables.REMOTE_CONFIG_TEST = "applied-from-github";
+
+  # Add a simple custom file to /etc to test persistence
+  environment.etc."remote-config-test.txt" = {
+    text = ''
+      This file was created by the remote nixos-pi-configs configuration.
+      Created at: $(date)
+      If you see this file after reboot, the remote config is working.
+    '';
+    mode = "0644";
   };
 }
