@@ -115,23 +115,44 @@
           # Limit number of generations to keep boot partition clean (matching bootstrap)
           boot.loader.generic-extlinux-compatible.configurationLimit = 3;
 
-          # Use dynamic hostname reading from discovery config at runtime
-          networking.hostName = "sensor-default";  # fallback name
+          # Dynamic hostname that reads from discovery config
+          networking.hostName =
+            let
+              configFile = "/var/lib/nixos-bootstrap/discovery_config.json";
+              # Use a systemd service to update hostname file before NixOS reads it
+            in "sensor-default";  # fallback name
 
-          # Override hostname at boot from discovery config
-          system.activationScripts.hostname = {
-            text = ''
+          # Use a early systemd service to set hostname before network services
+          systemd.services.set-dynamic-hostname = {
+            description = "Set hostname from discovery config before network starts";
+            wantedBy = [ "sysinit.target" ];
+            before = [ "network-pre.target" "systemd-hostnamed.service" ];
+            after = [ "local-fs.target" ];
+            serviceConfig = {
+              Type = "oneshot";
+              RemainAfterExit = true;
+            };
+            path = with nixpkgs.legacyPackages.aarch64-linux; [ coreutils jq systemd ];
+            script = ''
               CONFIG_FILE="/var/lib/nixos-bootstrap/discovery_config.json"
+
               if [ -f "$CONFIG_FILE" ]; then
-                DISCOVERED_HOSTNAME=$(${nixpkgs.legacyPackages.aarch64-linux.jq}/bin/jq -r '.hostname // empty' "$CONFIG_FILE" 2>/dev/null)
+                DISCOVERED_HOSTNAME=$(jq -r '.hostname // empty' "$CONFIG_FILE" 2>/dev/null)
+
                 if [ -n "$DISCOVERED_HOSTNAME" ] && [ "$DISCOVERED_HOSTNAME" != "null" ]; then
-                  echo "Setting persistent hostname to: $DISCOVERED_HOSTNAME"
-                  echo "$DISCOVERED_HOSTNAME" > /etc/hostname
+                  echo "Setting hostname to: $DISCOVERED_HOSTNAME"
+                  # Set runtime hostname
                   echo "$DISCOVERED_HOSTNAME" > /proc/sys/kernel/hostname
+                  # Tell systemd about the hostname change
+                  systemctl restart systemd-hostnamed.service || true
+                  echo "Hostname set to: $DISCOVERED_HOSTNAME"
+                else
+                  echo "No hostname found in discovery config, keeping default"
                 fi
+              else
+                echo "Discovery config file not found, keeping default hostname"
               fi
             '';
-            deps = [ "etc" ];
           };
 
           # Alternative: Dynamic hostname service for runtime hostname updates
