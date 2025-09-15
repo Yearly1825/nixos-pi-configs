@@ -10,7 +10,7 @@
     nixosConfigurations.sensor = nixpkgs.lib.nixosSystem {
       system = "aarch64-linux";
       modules = [
-        raspberry-pi-nix.nixosModules.raspberry-pi-4
+        raspberry-pi-nix.nixosModules.raspberry-pi  # Changed this line
         {
           system.stateVersion = "24.05";
 
@@ -20,11 +20,11 @@
           # Basic Pi configuration
           hardware.raspberry-pi."4".apply-overlays-dtmerge.enable = true;
 
-          # Your existing config (SSH, packages, etc.)
+          # Your existing config
           services.openssh.enable = true;
           users.users.root.initialPassword = "bootstrap";
 
-          # Add your packages here
+          # Add your packages
           environment.systemPackages = with nixpkgs.legacyPackages.aarch64-linux; [
             git curl jq vim htop
           ];
