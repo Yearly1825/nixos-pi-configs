@@ -1,6 +1,14 @@
 {
   description = "Sensor configuration for Raspberry Pi";
 
+  # Configure additional binary cache for faster builds
+  nixConfig = {
+    extra-substituters = [ "https://raspberry-pi-nix.cachix.org" ];
+    extra-trusted-public-keys = [
+      "raspberry-pi-nix.cachix.org-1:WmV2rdSangxW0rZjY/tBvBDSaNFQ3DyEQsVw8EvHn9o="
+    ];
+  };
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     raspberry-pi-nix.url = "github:tstat/raspberry-pi-nix";
@@ -10,15 +18,15 @@
     nixosConfigurations.sensor = nixpkgs.lib.nixosSystem {
       system = "aarch64-linux";
       modules = [
-        raspberry-pi-nix.nixosModules.raspberry-pi  # Changed this line
+        raspberry-pi-nix.nixosModules.raspberry-pi
         {
           system.stateVersion = "24.05";
 
+          # Specify the board type (bcm2711 for RPi 4)
+          raspberry-pi-nix.board = "bcm2711";
+
           # Hardcode the hostname you want
           networking.hostName = "sensor-test-01";
-
-          # Basic Pi configuration
-          hardware.raspberry-pi."4".apply-overlays-dtmerge.enable = true;
 
           # Your existing config
           services.openssh.enable = true;
