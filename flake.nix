@@ -42,13 +42,8 @@
             };
           };
 
-          # Boot configuration
-          boot = {
-            loader = {
-              grub.enable = false;
-              generic-extlinux-compatible.enable = true;
-            };
-          };
+          # Boot configuration - let raspberry-pi-nix module handle this
+          boot.loader.grub.enable = false;
 
           # Your existing config
           services.openssh.enable = true;
