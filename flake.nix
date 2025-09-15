@@ -115,12 +115,24 @@
           # Limit number of generations to keep boot partition clean (matching bootstrap)
           boot.loader.generic-extlinux-compatible.configurationLimit = 3;
 
-          # Dynamic hostname - can be overridden by environment variable
-          networking.hostName =
-            let
-              envHostname = builtins.getEnv "ASSIGNED_HOSTNAME";
-            in
-            if envHostname != "" then envHostname else "sensor-default";
+          # Use dynamic hostname reading from discovery config at runtime
+          networking.hostName = "sensor-default";  # fallback name
+
+          # Override hostname at boot from discovery config
+          system.activationScripts.hostname = {
+            text = ''
+              CONFIG_FILE="/var/lib/nixos-bootstrap/discovery_config.json"
+              if [ -f "$CONFIG_FILE" ]; then
+                DISCOVERED_HOSTNAME=$(${nixpkgs.legacyPackages.aarch64-linux.jq}/bin/jq -r '.hostname // empty' "$CONFIG_FILE" 2>/dev/null)
+                if [ -n "$DISCOVERED_HOSTNAME" ] && [ "$DISCOVERED_HOSTNAME" != "null" ]; then
+                  echo "Setting persistent hostname to: $DISCOVERED_HOSTNAME"
+                  echo "$DISCOVERED_HOSTNAME" > /etc/hostname
+                  echo "$DISCOVERED_HOSTNAME" > /proc/sys/kernel/hostname
+                fi
+              fi
+            '';
+            deps = [ "etc" ];
+          };
 
           # Alternative: Dynamic hostname service for runtime hostname updates
           systemd.services.dynamic-hostname = {
