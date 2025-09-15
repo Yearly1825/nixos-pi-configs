@@ -28,6 +28,29 @@
           # Hardcode the hostname you want
           networking.hostName = "sensor-test-01";
 
+          # Filesystem configuration
+          fileSystems = {
+            "/" = {
+              device = "/dev/disk/by-label/NIXOS_SD";
+              fsType = "ext4";
+              options = [ "noatime" ];
+            };
+            "/boot" = {
+              device = "/dev/disk/by-label/BOOT";
+              fsType = "vfat";
+              options = [ "nofail" "noauto" ];
+            };
+          };
+
+          # Boot configuration
+          boot = {
+            loader = {
+              grub.enable = false;
+              generic-extlinux-compatible.enable = true;
+            };
+            kernelPackages = nixpkgs.legacyPackages.aarch64-linux.linuxPackages_rpi4;
+          };
+
           # Your existing config
           services.openssh.enable = true;
           users.users.root.initialPassword = "bootstrap";
