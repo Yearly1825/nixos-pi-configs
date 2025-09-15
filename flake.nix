@@ -48,7 +48,6 @@
               grub.enable = false;
               generic-extlinux-compatible.enable = true;
             };
-            kernelPackages = nixpkgs.legacyPackages.aarch64-linux.linuxPackages_rpi4;
           };
 
           # Your existing config
