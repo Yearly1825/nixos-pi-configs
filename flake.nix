@@ -9,6 +9,55 @@
     nixosConfigurations.sensor = nixpkgs.lib.nixosSystem {
       system = "aarch64-linux";
       modules = [
+        # Include hardware configuration (matching bootstrap)
+        {
+          # Hardware configuration matching bootstrap exactly
+          fileSystems."/" = {
+            device = "/dev/disk/by-label/NIXOS_SD";
+            fsType = "ext4";
+            options = [ "noatime" ];
+          };
+          fileSystems."/boot" = {
+            device = "/dev/disk/by-label/FIRMWARE";
+            fsType = "vfat";
+          };
+
+          # Pi4-specific boot configuration
+          boot.kernelPackages = nixpkgs.legacyPackages.aarch64-linux.linuxPackages_rpi4;
+          hardware = {
+            enableRedistributableFirmware = true;
+            deviceTree = {
+              enable = true;
+              filter = "*rpi-4-*.dtb";
+            };
+          };
+
+          # Network configuration (matching bootstrap)
+          networking = {
+            # Use NetworkManager for DHCP handling
+            networkmanager.enable = true;
+            # Enable DHCP on ethernet interfaces
+            useDHCP = false;
+            interfaces = {
+              eth0.useDHCP = true;
+              end0.useDHCP = true;  # Some Pi models use this interface name
+            };
+            # Basic firewall - allow SSH
+            firewall = {
+              enable = true;
+              allowedTCPPorts = [ 22 ];
+            };
+          };
+
+          # Network discovery services (matching bootstrap)
+          services.avahi = {
+            enable = true;
+            nssmdns4 = true;
+            publish.enable = true;
+            publish.addresses = true;
+          };
+          systemd.services.NetworkManager-wait-online.enable = true;
+        }
         {
           # Add this at the top level (matching bootstrap)
           nixpkgs.overlays = [(final: prev: {
@@ -66,10 +115,14 @@
           # Limit number of generations to keep boot partition clean (matching bootstrap)
           boot.loader.generic-extlinux-compatible.configurationLimit = 3;
 
-          # Default hostname (will be overridden by dynamic hostname service)
-          networking.hostName = "sensor-default";
+          # Dynamic hostname - can be overridden by environment variable
+          networking.hostName =
+            let
+              envHostname = builtins.getEnv "ASSIGNED_HOSTNAME";
+            in
+            if envHostname != "" then envHostname else "sensor-default";
 
-          # Dynamic hostname service that reads from discovery config
+          # Alternative: Dynamic hostname service for runtime hostname updates
           systemd.services.dynamic-hostname = {
             description = "Set hostname from discovery service configuration";
             wantedBy = [ "multi-user.target" ];
@@ -79,7 +132,7 @@
               Type = "oneshot";
               RemainAfterExit = true;
             };
-            path = with nixpkgs.legacyPackages.aarch64-linux; [ coreutils jq ];
+            path = with nixpkgs.legacyPackages.aarch64-linux; [ coreutils jq hostnamectl ];
             script = ''
               CONFIG_FILE="/var/lib/nixos-bootstrap/discovery_config.json"
 
@@ -89,7 +142,9 @@
 
                 if [ -n "$DISCOVERED_HOSTNAME" ] && [ "$DISCOVERED_HOSTNAME" != "null" ]; then
                   echo "Setting hostname to: $DISCOVERED_HOSTNAME"
+                  # Set both kernel hostname and persistent hostname
                   echo "$DISCOVERED_HOSTNAME" > /proc/sys/kernel/hostname
+                  hostnamectl set-hostname "$DISCOVERED_HOSTNAME"
                   echo "Dynamic hostname set to: $DISCOVERED_HOSTNAME"
                 else
                   echo "No hostname found in discovery config, keeping default"
