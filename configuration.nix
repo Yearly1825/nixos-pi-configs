@@ -22,7 +22,6 @@
     useDHCP = false;
     interfaces = {
       eth0.useDHCP = true;
-      end0.useDHCP = true;
     };
     firewall = {
       enable = true;
