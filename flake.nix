@@ -132,7 +132,7 @@
               Type = "oneshot";
               RemainAfterExit = true;
             };
-            path = with nixpkgs.legacyPackages.aarch64-linux; [ coreutils jq hostnamectl ];
+            path = with nixpkgs.legacyPackages.aarch64-linux; [ coreutils jq systemd ];
             script = ''
               CONFIG_FILE="/var/lib/nixos-bootstrap/discovery_config.json"
 
