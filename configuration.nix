@@ -1,22 +1,6 @@
 { config, lib, pkgs, ... }:
 
-let
-  # Read hostname from discovery config if it exists
-  discoveryConfig = "/var/lib/nixos-bootstrap/discovery_config.json";
-  defaultHostname = "sensor-default";
-
-  # Simple hostname detection function
-  getDiscoveryHostname =
-    if builtins.pathExists discoveryConfig
-    then
-      let
-        configContent = builtins.readFile discoveryConfig;
-        parsedConfig = builtins.fromJSON configContent;
-      in
-        parsedConfig.hostname or defaultHostname
-    else defaultHostname;
-
-in {
+{
   # System version
   system.stateVersion = "24.05";
 
@@ -33,7 +17,7 @@ in {
 
   # Network configuration (matching bootstrap)
   networking = {
-    hostName = getDiscoveryHostname;
+    hostName = "sensor-default"; # fallback, will be overridden at runtime
     networkmanager.enable = true;
     useDHCP = false;
     interfaces = {
@@ -44,6 +28,36 @@ in {
       enable = true;
       allowedTCPPorts = [ 22 ];
     };
+  };
+
+  # Runtime hostname setter - runs every boot to set correct hostname
+  systemd.services.set-hostname-from-discovery = {
+    description = "Set hostname from discovery service configuration";
+    wantedBy = [ "multi-user.target" ];
+    before = [ "network.target" ];
+    after = [ "local-fs.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    path = with pkgs; [ coreutils jq ];
+    script = ''
+      CONFIG_FILE="/var/lib/nixos-bootstrap/discovery_config.json"
+
+      if [ -f "$CONFIG_FILE" ]; then
+        DISCOVERED_HOSTNAME=$(jq -r '.hostname // empty' "$CONFIG_FILE" 2>/dev/null)
+
+        if [ -n "$DISCOVERED_HOSTNAME" ] && [ "$DISCOVERED_HOSTNAME" != "null" ]; then
+          echo "Setting hostname to: $DISCOVERED_HOSTNAME"
+          echo "$DISCOVERED_HOSTNAME" > /proc/sys/kernel/hostname
+          echo "Hostname successfully set to: $DISCOVERED_HOSTNAME"
+        else
+          echo "No hostname found in discovery config, keeping default"
+        fi
+      else
+        echo "Discovery config file not found, keeping default hostname"
+      fi
+    '';
   };
 
   # Network discovery services
