@@ -2,7 +2,7 @@
   description = "Sensor configuration for Raspberry Pi";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";  # Match working Pi's 25.11
   };
 
   outputs = { self, nixpkgs }: {
