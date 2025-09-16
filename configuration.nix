@@ -10,13 +10,9 @@
       ./hardware-configuration.nix
     ];
 
-    boot.loader.grub.enable = false;
-    boot.loader.generic-extlinux-compatible.enable = true;
-    boot.loader.generic-extlinux-compatible.configurationLimit = 3;
-
-    fileSystems."/boot/firmware" = {
-      device = "/dev/mmcblk0"; # Adjust as needed
-      fsType = "vfat";
+  # Use the GRUB 2 boot loader.
+  boot.loader.grub.enable = true;
+  boot.loader.grub.device = "/dev/mmcblk0"; # SD card device
 
   # Set hostname
   networking.hostName = "sensor-pi";
