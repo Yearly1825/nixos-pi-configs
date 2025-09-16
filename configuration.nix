@@ -10,9 +10,9 @@
       ./hardware-configuration.nix
     ];
 
-  # Use the GRUB 2 boot loader.
-  boot.loader.grub.enable = true;
-  boot.loader.grub.device = "/dev/mmcblk0"; # SD card device
+  # Use extlinux bootloader (correct for Raspberry Pi)
+  boot.loader.grub.enable = false;
+  boot.loader.generic-extlinux-compatible.enable = true;
 
   # Set hostname
   networking.hostName = "sensor-pi";
