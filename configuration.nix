@@ -39,11 +39,36 @@
 
   # Basic system packages
   environment.systemPackages = with pkgs; [
-    vim
-    wget
     git
     curl
+    jq
+    wget
+    vim
     htop
+    tmux
+    # Discovery service dependencies
+    python3
+    python3Packages.requests
+    python3Packages.cryptography
+    python3Packages.pip
+
+    # Pre-installed network monitoring tools (speeds up bootstrap)
+    kismet
+    aircrack-ng
+    hcxdumptool
+    hcxtools
+    tcpdump
+    wireshark-cli  # provides tshark
+    nmap
+    iftop
+    netcat-gnu
+
+    # GPS support
+    gpsd
+
+    # Additional system tools
+    iotop
+    nethogs
   ];
 
   # Open SSH port in firewall
