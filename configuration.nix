@@ -29,7 +29,12 @@
     };
   };
 
-  # Keep root user with bootstrap password for now
+  # User configuration - enable both nixos and root users
+  users.users.nixos = {
+    isNormalUser = true;
+    extraGroups = [ "wheel" "networkmanager" ];
+    initialPassword = "nixos";
+  };
   users.users.root.initialPassword = "bootstrap";
 
   # Basic system packages
