@@ -30,10 +30,10 @@ in {
 
         # Network Interfaces
         #source=wlan0:type=linuxwifi,hop=true,hop_channels="1,2,3,4,5,6,7,8,9,10,11"
-        source=wlp1s0u1u1:type=linuxwifi,hop=true
-        source=wlp1s0u1u2:type=linuxwifi,hop=true
-        source=wlp1s0u1u3:type=linuxwifi,hop=true
-        source=wlp1s0u1u4:type=linuxwifi,hop=true
+        source=wlp1s0u1u1
+        source=wlp1s0u1u2
+        source=wlp1s0u1u3
+        source=wlp1s0u1u4
         # GPS
         gps=gpsd:host=localhost,port=2947
 
