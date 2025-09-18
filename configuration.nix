@@ -213,47 +213,11 @@ in
   services.kismet-sensor = {
     enable = true;
 
-    # Monitor wlan0 interface with channel hopping
-    interfaces = [
-      "wlp1s0u1u1:type=linuxwifi,hop=true"
-      "wlp1s0u1u2:type=linuxwifi,hop=true"
-      "wlp1s0u1u3:type=linuxwifi,hop=true"
-      "wlp1s0u1u4:type=linuxwifi,hop=true"
-    ];
+    # Override defaults only if needed
+    # interfaces = [ "wlan1:type=linuxwifi" ];  # Add additional interfaces
 
-    # Web UI configuration
-    httpd = {
-      bindAddress = "0.0.0.0";  # Listen on all interfaces
-      port = 2501;
-      username = "kismet";
-      password = "changeme";  # Change this in production!
-    };
-
-    # GPS configuration
-    gps = {
-      enable = true;
-      host = "127.0.0.1";
-      port = 2947;
-    };
-
-    # Additional custom Kismet configuration
-    extraConfig = ''
-      # Logging configuration
-      log_types=kismet
-
-      # Alert configuration
-      alert=APSPOOF,1/min,5/min,0/min
-      alert=CHANCHANGE,1/min,5/min,0/min
-      alert=BCASTDISCON,1/min,5/min,0/min
-
-      # Performance tuning for Raspberry Pi
-      packet_dedup_size=2048
-      packet_backlog_warning=512
-      packet_backlog_limit=1024
-
-      # Track devices for 10 minutes
-      tracker_device_timeout=600
-    '';
+    # Override password for production
+    httpd.password = "changeme";  # TODO: Change this in production!
   };
 
   # Enable GPS daemon
