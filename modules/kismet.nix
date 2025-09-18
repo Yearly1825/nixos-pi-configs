@@ -30,17 +30,16 @@ in {
 
         # Network Interfaces
         #source=wlan0:type=linuxwifi,hop=true,hop_channels="1,2,3,4,5,6,7,8,9,10,11"
-
+        source=wlp1s0u1u1:type=linuxwifi,hop=true
+        source=wlp1s0u1u2:type=linuxwifi,hop=true
+        source=wlp1s0u1u3:type=linuxwifi,hop=true
+        source=wlp1s0u1u4:type=linuxwifi,hop=true
         # GPS
-        #gps=true
-        #gpshost=127.0.0.1
-        #gpsport=2947
+        gps=gpsd:host=localhost,port=2947
 
         # Web UI
         #httpd_bind_address=0.0.0.0
         #httpd_port=2501
-        #httpd_username=admin
-        #httpd_password=sensor123!
 
         # Alerts
         alert=APSPOOF,1/min,5/min,0/min
