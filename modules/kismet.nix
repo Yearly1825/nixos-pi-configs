@@ -21,7 +21,7 @@ let
     log_prefix=/var/lib/kismet/logs/
 
     # Log types
-    log_types=kismet,pcapng,pcapng-stream
+    log_types=kismet
 
     # Keep logs for 7 days
     log_title=sensor-%Y-%m-%d-%H-%M-%S
@@ -36,7 +36,10 @@ let
 
     # Example for specific WiFi adapter
     # source=wlan1:type=linuxwifi,hop=true,hop_channels="1,2,3,4,5,6,7,8,9,10,11,12,13"
-
+    source=wlp1s0u1u3
+    source=wlp1s0u1u2
+    source=wlp1s0u1u1
+    source=wlp1s0u1u4
     # Example for RTL-SDR
     # source=rtl433-0:type=rtl433,device=0
 
@@ -210,6 +213,7 @@ in {
     # Install Kismet and related packages
     environment.systemPackages = with pkgs; [
       kismet
+      gpsd
       aircrack-ng
       hcxdumptool
       hcxtools
