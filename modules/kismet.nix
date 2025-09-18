@@ -155,7 +155,7 @@ in {
 
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${pkgs.kismet}/bin/kismet --no-wrapper-no-daemonize -f ${kismetSiteConf}";
+        ExecStart = "${pkgs.kismet}/bin/kismet --no-ncurses";
         Restart = "always";
         RestartSec = "10s";
 
