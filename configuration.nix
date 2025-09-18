@@ -27,6 +27,9 @@ in
   boot.loader.grub.enable = false;
   boot.loader.generic-extlinux-compatible.enable = true;
 
+  # Set wireless regulatory domain for proper WiFi channel access
+  boot.kernelParams = [ "cfg80211.ieee80211_regdom=US" ];
+
   # Hostname from discovery service configuration
   networking.hostName = discoveryConfig.hostname or "sensor-pi";
 

@@ -21,9 +21,9 @@ let
     log_prefix=/var/lib/kismet/logs/
 
     # Log types
-    log_types=kismet
+    log_types=kismet,pcapng,pcapng-stream
 
-    # Keep logs for 7 days
+    # Keep logs for 7 days with sensor prefix
     log_title=sensor-%Y-%m-%d-%H-%M-%S
 
     # ========================================
@@ -36,10 +36,7 @@ let
 
     # Example for specific WiFi adapter
     # source=wlan1:type=linuxwifi,hop=true,hop_channels="1,2,3,4,5,6,7,8,9,10,11,12,13"
-    source=wlp1s0u1u3:type=linuxwifi,hop=true
-    source=wlp1s0u1u2:type=linuxwifi,hop=true
-    source=wlp1s0u1u1:type=linuxwifi,hop=true
-    source=wlp1s0u1u4:type=linuxwifi,hop=true
+
     # Example for RTL-SDR
     # source=rtl433-0:type=rtl433,device=0
 
@@ -251,34 +248,6 @@ in {
         # Ensure data directories exist
         mkdir -p ${cfg.dataDir}/logs
         mkdir -p ${cfg.dataDir}/data
-
-        # Set interface to monitor mode if specified
-        ${concatStringsSep "\n" (map (iface:
-          let
-            ifaceName = head (splitString ":" iface);
-          in ''
-            # Check if ${ifaceName} exists and set to monitor mode
-            if ${pkgs.iproute2}/bin/ip link show ${ifaceName} >/dev/null 2>&1; then
-              echo "Preparing interface ${ifaceName} for monitoring..."
-              ${pkgs.iw}/bin/iw ${ifaceName} set type monitor || true
-              ${pkgs.iproute2}/bin/ip link set ${ifaceName} up || true
-            fi
-          ''
-        ) cfg.interfaces)}
-      '';
-
-      postStop = ''
-        # Reset interfaces to managed mode
-        ${concatStringsSep "\n" (map (iface:
-          let
-            ifaceName = head (splitString ":" iface);
-          in ''
-            if ${pkgs.iproute2}/bin/ip link show ${ifaceName} >/dev/null 2>&1; then
-              echo "Resetting interface ${ifaceName}..."
-              ${pkgs.iw}/bin/iw ${ifaceName} set type managed || true
-            fi
-          ''
-        ) cfg.interfaces)}
       '';
     };
 
@@ -294,5 +263,9 @@ in {
 
     # GPS support is configured in configuration.nix when gps.enable = true
     # This avoids conflicts with the main gpsd service configuration
+
+    # Set wireless regulatory domain for proper channel access
+    boot.kernelParams = [ "cfg80211.ieee80211_regdom=US" ];
+    hardware.wirelessRegulatoryDatabase = true;
   };
 }
