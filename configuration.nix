@@ -213,11 +213,22 @@ in
   services.kismet-sensor = {
     enable = true;
 
-    # Override defaults only if needed
-    # interfaces = [ "wlan1:type=linuxwifi" ];  # Add additional interfaces
+    # Override the entire kismet_site.conf if needed
+    # The default config is defined in the module
+    # Uncomment below to override with your custom configuration:
 
-    # Override password for production
-    httpd.password = "changeme";  # TODO: Change this in production!
+    # extraConfig = ''
+    #   log_prefix=/var/lib/kismet/logs/
+    #   log_title=sensor-%Y-%m-%d-%H-%M-%S
+    #
+    #   source=wlan0:type=linuxwifi,hop=true
+    #   source=wlan1:type=linuxwifi,hop=true
+    #
+    #   httpd_bind_address=0.0.0.0
+    #   httpd_port=2501
+    #   httpd_username=admin
+    #   httpd_password=changeme
+    # '';
   };
 
   # Enable GPS daemon
