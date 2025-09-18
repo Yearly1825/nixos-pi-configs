@@ -9,6 +9,7 @@ let
   cfg = config.services.kismet-sensor;
 
   # Simple Kismet configuration - just write extraConfig directly
+  # This file is used with -o flag to override defaults (not replace them)
   kismetSiteConf = pkgs.writeText "kismet_site.conf" cfg.extraConfig;
 
 in {
@@ -84,7 +85,8 @@ in {
 
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${pkgs.kismet}/bin/kismet --no-ncurses -f ${kismetSiteConf}";
+        # Use -o to override config (not -f which replaces entire config)
+        ExecStart = "${pkgs.kismet}/bin/kismet --no-ncurses -o ${kismetSiteConf}";
         Restart = "always";
         RestartSec = "10s";
 
