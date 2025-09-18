@@ -21,7 +21,7 @@ let
     log_prefix=/var/lib/kismet/logs/
 
     # Log types
-    log_types=kismet,pcapng,pcapng-stream
+    log_types=kismet
 
     # Keep logs for 7 days with sensor prefix
     log_title=sensor-%Y-%m-%d-%H-%M-%S
