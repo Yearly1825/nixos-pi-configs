@@ -230,7 +230,7 @@ in {
 
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${pkgs.kismet}/bin/kismet --no-console-wrapper -c ${kismetSiteConf} -t sensor";
+        ExecStart = "${pkgs.kismet}/bin/kismet --no-console-wrapper -f ${kismetSiteConf}";
         Restart = "always";
         RestartSec = "10s";
 
