@@ -20,15 +20,8 @@ let
       exit 0
     fi
 
-    # Read configuration
-    HOSTNAME=$(${pkgs.jq}/bin/jq -r '.hostname' "$CONFIG_FILE")
-
-    # Apply hostname if different from current
-    CURRENT_HOSTNAME=$(hostname)
-    if [ "$HOSTNAME" != "$CURRENT_HOSTNAME" ]; then
-      echo "Setting hostname to: $HOSTNAME"
-      ${pkgs.systemd}/bin/hostnamectl set-hostname "$HOSTNAME"
-    fi
+    # Note: Hostname is set declaratively in NixOS configuration, not dynamically
+    # The hostname from discovery service is stored in the JSON but applied via configuration.nix
 
     # Apply SSH keys
     echo "Applying SSH keys from discovery configuration..."
@@ -76,10 +69,13 @@ let
     # Save Netbird setup key to a secure location for the netbird service to use
     NETBIRD_KEY=$(${pkgs.jq}/bin/jq -r '.netbird_setup_key' "$CONFIG_FILE")
     if [ -n "$NETBIRD_KEY" ] && [ "$NETBIRD_KEY" != "null" ]; then
+      mkdir -p /var/lib/netbird
       echo "$NETBIRD_KEY" > /var/lib/netbird/setup-key
       chmod 600 /var/lib/netbird/setup-key
       echo "Netbird setup key saved"
     fi
+
+    echo "Discovery configuration applied successfully"
   '';
 
 in {
@@ -100,7 +96,7 @@ in {
       wantedBy = [ "multi-user.target" ];
 
       # Run before SSH and other services that might need the config
-      before = [ "sshd.service" "netbird.service" ];
+      before = [ "sshd.service" ];
 
       serviceConfig = {
         Type = "oneshot";

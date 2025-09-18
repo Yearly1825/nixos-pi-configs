@@ -4,6 +4,15 @@
 
 { config, lib, pkgs, ... }:
 
+let
+  # Read discovery configuration if it exists
+  discoveryConfigFile = "/var/lib/nixos-bootstrap/discovery_config.json";
+  discoveryConfig =
+    if builtins.pathExists discoveryConfigFile then
+      builtins.fromJSON (builtins.readFile discoveryConfigFile)
+    else
+      { hostname = "sensor-pi"; };  # Fallback if file doesn't exist
+in
 {
   imports =
     [ # Include the results of the hardware scan.
@@ -18,8 +27,8 @@
   boot.loader.grub.enable = false;
   boot.loader.generic-extlinux-compatible.enable = true;
 
-  # Hostname will be set dynamically from discovery service
-  # networking.hostName = "sensor-pi";  # Commented out - set by discovery-config
+  # Hostname from discovery service configuration
+  networking.hostName = discoveryConfig.hostname or "sensor-pi";
 
   # Enable DHCP networking (matches hardware config)
   networking.useDHCP = true;
@@ -74,6 +83,58 @@
     # Additional system tools
     iotop
     nethogs
+
+    # Netbird troubleshooting helper scripts
+    (pkgs.writeScriptBin "netbird-fix" ''
+      #!${pkgs.bash}/bin/bash
+      echo "=== Netbird Troubleshooting ==="
+      echo "Stopping existing service..."
+      netbird service stop 2>/dev/null || true
+      systemctl stop netbird 2>/dev/null || true
+
+      echo "Uninstalling service..."
+      netbird service uninstall 2>/dev/null || true
+
+      echo "Creating directories..."
+      mkdir -p /var/lib/netbird /var/run/netbird /var/log/netbird
+
+      echo "Reinstalling service..."
+      netbird service install --config /var/lib/netbird/config.json --log-file console
+
+      echo "Starting service..."
+      netbird service start || systemctl start netbird
+
+      echo "Checking status..."
+      sleep 3
+      netbird status
+    '')
+
+    (pkgs.writeScriptBin "netbird-enroll" ''
+      #!${pkgs.bash}/bin/bash
+      SETUP_KEY_FILE="/var/lib/netbird/setup-key"
+      if [ -f "$SETUP_KEY_FILE" ]; then
+        SETUP_KEY=$(cat "$SETUP_KEY_FILE")
+        echo "Enrolling with setup key..."
+        netbird up --setup-key "$SETUP_KEY" --management-url https://nb.a28.dev
+      else
+        echo "No setup key found at $SETUP_KEY_FILE"
+        exit 1
+      fi
+    '')
+
+    (pkgs.writeScriptBin "sensor-status" ''
+      #!${pkgs.bash}/bin/bash
+      echo "=== Sensor Status ==="
+      echo "Hostname: $(hostname)"
+      echo "Discovery Config:"
+      cat /var/lib/nixos-bootstrap/discovery_config.json 2>/dev/null | jq . || echo "Not found"
+      echo ""
+      echo "=== Netbird Status ==="
+      netbird status 2>/dev/null || echo "Not running"
+      echo ""
+      echo "=== Services ==="
+      systemctl is-active apply-discovery-config netbird-setup netbird-autoconnect kismet
+    '')
   ];
 
   # Firewall configuration

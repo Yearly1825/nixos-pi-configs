@@ -29,9 +29,9 @@ This configuration provides:
 
 ### `discovery-config.nix`
 Reads configuration from `/var/lib/nixos-bootstrap/discovery_config.json` and applies:
-- Hostname setting
 - SSH key deployment to root and nixos users
 - Netbird setup key storage
+(Note: Hostname is set declaratively in configuration.nix by reading the discovery config file)
 
 ### `netbird.nix`
 Manages Netbird VPN connection:
@@ -197,9 +197,37 @@ nixos-rebuild switch
    ls -la /var/lib/netbird/.enrolled
    ```
 
-3. Try manual enrollment:
+3. Use the helper scripts:
    ```bash
-   netbird up --setup-key <key> --management-url https://nb.a28.dev
+   # Fix Netbird service issues
+   netbird-fix
+   
+   # Manually enroll with saved setup key
+   netbird-enroll
+   
+   # Check overall sensor status
+   sensor-status
+   ```
+
+4. Manual troubleshooting:
+   ```bash
+   # Stop everything
+   netbird service stop
+   systemctl stop netbird
+   
+   # Reinstall service
+   netbird service uninstall
+   netbird service install --config /var/lib/netbird/config.json
+   
+   # Start and enroll
+   netbird service start
+   netbird up --setup-key $(cat /var/lib/netbird/setup-key) --management-url https://nb.a28.dev
+   ```
+
+5. Check logs:
+   ```bash
+   journalctl -u netbird-setup -f
+   journalctl -u netbird-autoconnect -f
    ```
 
 ### Kismet Issues
