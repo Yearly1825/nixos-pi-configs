@@ -36,10 +36,10 @@ let
 
     # Example for specific WiFi adapter
     # source=wlan1:type=linuxwifi,hop=true,hop_channels="1,2,3,4,5,6,7,8,9,10,11,12,13"
-    source=wlp1s0u1u3
-    source=wlp1s0u1u2
-    source=wlp1s0u1u1
-    source=wlp1s0u1u4
+    source=wlp1s0u1u3:type=linuxwifi,hop=true
+    source=wlp1s0u1u2:type=linuxwifi,hop=true
+    source=wlp1s0u1u1:type=linuxwifi,hop=true
+    source=wlp1s0u1u4:type=linuxwifi,hop=true
     # Example for RTL-SDR
     # source=rtl433-0:type=rtl433,device=0
 
