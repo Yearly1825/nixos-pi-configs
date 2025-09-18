@@ -46,10 +46,13 @@ in
   # User configuration - enable both nixos and root users
   users.users.nixos = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" ];
+    extraGroups = [ "wheel" "networkmanager" "dialout" ];  # dialout for GPS access
     initialPassword = "nixos";
   };
-  users.users.root.initialPassword = "bootstrap";
+  users.users.root = {
+    initialPassword = "bootstrap";
+    extraGroups = [ "dialout" ];  # dialout for GPS access
+  };
 
   # Basic system packages
   environment.systemPackages = with pkgs; [
@@ -83,6 +86,10 @@ in
     # Additional system tools
     iotop
     nethogs
+
+    # GPS tools
+    gpsd
+    (python3.withPackages (ps: with ps; [ gps3 ]))
 
     # Netbird troubleshooting helper scripts
     (pkgs.writeScriptBin "netbird-fix" ''
@@ -147,6 +154,37 @@ in
       echo "=== Services ==="
       systemctl is-active apply-discovery-config netbird netbird-enroll netbird-autoconnect kismet
     '')
+
+    (pkgs.writeScriptBin "gps-check" ''
+      #!${pkgs.bash}/bin/bash
+      echo "=== GPS Troubleshooting ==="
+      echo ""
+      echo "1. Checking for GPS devices:"
+      ls -la /dev/ttyUSB* /dev/ttyACM* 2>/dev/null || echo "No USB GPS devices found"
+
+      echo ""
+      echo "2. GPSD service status:"
+      systemctl status gpsd --no-pager
+
+      echo ""
+      echo "3. GPSD socket:"
+      ls -la /var/run/gpsd* 2>/dev/null || echo "No GPSD socket found"
+
+      echo ""
+      echo "4. Testing GPSD connection:"
+      timeout 2 gpspipe -r -n 5 2>/dev/null || echo "Could not connect to GPSD"
+
+      echo ""
+      echo "5. Available GPS tools:"
+      which cgps gpsmon gpspipe
+
+      echo ""
+      echo "Tips:"
+      echo "- Make sure GPS device is plugged into USB"
+      echo "- Common devices: /dev/ttyUSB0, /dev/ttyACM0"
+      echo "- Restart GPSD: systemctl restart gpsd"
+      echo "- Monitor GPS: cgps or gpsmon"
+    '')
   ];
 
   # Firewall configuration
@@ -172,8 +210,10 @@ in
   services.kismet-sensor = {
     enable = true;
 
-    # Example: Monitor wlan0 interface (uncomment and modify as needed)
-    # interfaces = [ "wlan0:type=linuxwifi,hop=true" ];
+    # Monitor wlan0 interface with channel hopping
+    interfaces = [
+      "wlan0:type=linuxwifi,hop=true,hop_channels=\"1,2,3,4,5,6,7,8,9,10,11\""
+    ];
 
     # Web UI configuration
     httpd = {
@@ -183,19 +223,39 @@ in
       password = "changeme";  # Change this in production!
     };
 
-    # Example GPS configuration (uncomment if you have GPS)
-    # gps = {
-    #   enable = true;
-    #   host = "127.0.0.1";
-    #   port = 2947;
-    # };
+    # GPS configuration
+    gps = {
+      enable = true;
+      host = "127.0.0.1";
+      port = 2947;
+    };
 
     # Additional custom Kismet configuration
     extraConfig = ''
-      # Add any custom Kismet configuration here
-      # Example: source=wlan1:type=linuxwifi,hop=true,hop_channels="1,6,11"
-      # Example: alert=APSPOOF,1/min,5/min,0/min
+      # Logging configuration
+      log_types=kismet,pcapng,pcapng-stream,gpsxml
+
+      # Alert configuration
+      alert=APSPOOF,1/min,5/min,0/min
+      alert=CHANCHANGE,1/min,5/min,0/min
+      alert=BCASTDISCON,1/min,5/min,0/min
+
+      # Performance tuning for Raspberry Pi
+      packet_dedup_size=2048
+      packet_backlog_warning=512
+      packet_backlog_limit=1024
+
+      # Track devices for 10 minutes
+      tracker_device_timeout=600
     '';
+  };
+
+  # Enable GPS daemon
+  services.gpsd = {
+    enable = true;
+    devices = [ "/dev/ttyUSB0" "/dev/ttyACM0" ];
+    nowait = true;
+    extraArgs = [ "-n" "-b" ];  # -n = don't wait for client, -b = broken-device-safety
   };
 
   # This value determines the NixOS release from which the default

@@ -58,34 +58,42 @@ The default configuration in `configuration.nix` provides a working setup with:
 
 ### Customization
 
-1. **Copy the example site configuration**:
-   ```bash
-   cp site-config.nix.example site-config.nix
-   ```
+Edit the Kismet configuration directly in `configuration.nix`:
 
-2. **Edit `site-config.nix`** to customize:
-   - Kismet monitoring interfaces
-   - Web UI credentials
-   - GPS settings
-   - Additional packages
-   - Network optimizations
-
-3. **Import your site configuration** in `configuration.nix`:
-   ```nix
-   imports = [
-     ./hardware-configuration.nix
-     ./modules/discovery-config.nix
-     ./modules/netbird.nix
-     ./modules/kismet.nix
-     ./site-config.nix  # Add this line
-   ];
-   ```
+```nix
+services.kismet-sensor = {
+  enable = true;
+  
+  # Configure monitoring interfaces
+  interfaces = [
+    "wlan0:type=linuxwifi,hop=true,hop_channels=\"1,2,3,4,5,6,7,8,9,10,11\""
+  ];
+  
+  # Web UI credentials
+  httpd = {
+    username = "admin";
+    password = "your-secure-password";
+  };
+  
+  # GPS settings
+  gps = {
+    enable = true;
+    host = "127.0.0.1";
+    port = 2947;
+  };
+  
+  # Additional Kismet configuration
+  extraConfig = ''
+    # Your custom configuration here
+  '';
+};
+```
 
 ## Kismet Configuration
 
 ### Monitoring Interfaces
 
-Configure which interfaces to monitor in `site-config.nix`:
+Configure which interfaces to monitor in `configuration.nix`:
 
 ```nix
 services.kismet-sensor.interfaces = [
@@ -276,7 +284,7 @@ nixos-rebuild switch
 To make SSH and Kismet accessible only via VPN:
 
 ```nix
-# In site-config.nix
+# In configuration.nix
 services.openssh.listenAddresses = [
   { addr = "100.64.0.1"; port = 22; }  # Netbird IP only
 ];

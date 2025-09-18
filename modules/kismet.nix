@@ -213,12 +213,13 @@ in {
     # Install Kismet and related packages
     environment.systemPackages = with pkgs; [
       kismet
-      gpsd
       aircrack-ng
       hcxdumptool
       hcxtools
       tcpdump
       wireshark-cli
+      gpsd  # GPS daemon
+      (python3.withPackages (ps: with ps; [ gps3 ]))  # GPS Python tools
     ];
 
     # Kismet service
@@ -291,11 +292,7 @@ in {
       "d ${cfg.dataDir}/data 0750 root root -"
     ];
 
-    # Optional: GPS support
-    services.gpsd = mkIf cfg.gps.enable {
-      enable = true;
-      devices = [ "/dev/ttyUSB0" "/dev/ttyACM0" ];  # Common GPS device paths
-      nowait = true;
-    };
+    # GPS support is configured in configuration.nix when gps.enable = true
+    # This avoids conflicts with the main gpsd service configuration
   };
 }
