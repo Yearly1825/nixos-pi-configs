@@ -85,7 +85,7 @@ in {
       serviceConfig = {
         Type = "simple";
         # Use -o to override config (not -f which replaces entire config)
-        ExecStart = "${pkgs.kismet}/bin/kismet --no-ncurses --override ${kismetSiteConf}";
+        ExecStart = "${pkgs.kismet}/bin/kismet --no-ncurses --override site -f ${kismetSiteConf}";
         Restart = "always";
         RestartSec = "10s";
 
