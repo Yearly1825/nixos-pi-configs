@@ -215,7 +215,10 @@ in
 
     # Monitor wlan0 interface with channel hopping
     interfaces = [
-      "wlan0:type=linuxwifi,hop=true,hop_channels=\"1,2,3,4,5,6,7,8,9,10,11\""
+      "wlp1s0u1u1:type=linuxwifi,hop=true"
+      "wlp1s0u1u2:type=linuxwifi,hop=true"
+      "wlp1s0u1u3:type=linuxwifi,hop=true"
+      "wlp1s0u1u4:type=linuxwifi,hop=true"
     ];
 
     # Web UI configuration
@@ -236,7 +239,7 @@ in
     # Additional custom Kismet configuration
     extraConfig = ''
       # Logging configuration
-      log_types=kismet,pcapng,pcapng-stream,gpsxml
+      log_types=kismet
 
       # Alert configuration
       alert=APSPOOF,1/min,5/min,0/min
