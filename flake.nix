@@ -11,6 +11,8 @@
       modules = [
         ./configuration.nix
         ./hardware-configuration.nix
+        # Modules are imported directly in configuration.nix
+        # This ensures they have access to the full system configuration
       ];
     };
   };

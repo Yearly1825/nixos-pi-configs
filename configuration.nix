@@ -8,14 +8,18 @@
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
+      # Import custom modules
+      ./modules/discovery-config.nix
+      ./modules/netbird.nix
+      ./modules/kismet.nix
     ];
 
   # Use extlinux bootloader (correct for Raspberry Pi)
   boot.loader.grub.enable = false;
   boot.loader.generic-extlinux-compatible.enable = true;
 
-  # Set hostname
-  networking.hostName = "sensor-pi";
+  # Hostname will be set dynamically from discovery service
+  # networking.hostName = "sensor-pi";  # Commented out - set by discovery-config
 
   # Enable DHCP networking (matches hardware config)
   networking.useDHCP = true;
@@ -24,8 +28,9 @@
   services.openssh = {
     enable = true;
     settings = {
-      PermitRootLogin = "yes";
-      PasswordAuthentication = true;
+      PermitRootLogin = "prohibit-password";  # Only allow key-based auth
+      PasswordAuthentication = false;  # Disable password auth for security
+      PubkeyAuthentication = true;
     };
   };
 
@@ -71,8 +76,54 @@
     nethogs
   ];
 
-  # Open SSH port in firewall
-  networking.firewall.allowedTCPPorts = [ 22 ];
+  # Firewall configuration
+  networking.firewall = {
+    enable = true;
+    allowedTCPPorts = [
+      22     # SSH
+      2501   # Kismet Web UI
+    ];
+  };
+
+  # Enable discovery configuration service
+  services.discovery-config.enable = true;
+
+  # Enable and configure Netbird VPN
+  services.netbird-sensor = {
+    enable = true;
+    managementUrl = "https://nb.a28.dev";
+    autoConnect = true;
+  };
+
+  # Enable and configure Kismet
+  services.kismet-sensor = {
+    enable = true;
+
+    # Example: Monitor wlan0 interface (uncomment and modify as needed)
+    # interfaces = [ "wlan0:type=linuxwifi,hop=true" ];
+
+    # Web UI configuration
+    httpd = {
+      bindAddress = "0.0.0.0";  # Listen on all interfaces
+      port = 2501;
+      username = "kismet";
+      password = "changeme";  # Change this in production!
+    };
+
+    # Example GPS configuration (uncomment if you have GPS)
+    # gps = {
+    #   enable = true;
+    #   host = "127.0.0.1";
+    #   port = 2947;
+    # };
+
+    # Additional custom Kismet configuration
+    extraConfig = ''
+      # Add any custom Kismet configuration here
+      # Example: source=wlan1:type=linuxwifi,hop=true,hop_channels="1,6,11"
+      # Example: alert=APSPOOF,1/min,5/min,0/min
+    '';
+  };
 
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions
