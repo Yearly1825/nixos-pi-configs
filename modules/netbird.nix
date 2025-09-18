@@ -8,18 +8,21 @@ with lib;
 let
   cfg = config.services.netbird-sensor;
 
-  # Netbird setup and enrollment script
-  setupNetbird = pkgs.writeScriptBin "setup-netbird" ''
+  # Netbird enrollment script
+  enrollNetbird = pkgs.writeScriptBin "enroll-netbird" ''
     #!${pkgs.bash}/bin/bash
     set -euo pipefail
 
     SETUP_KEY_FILE="/var/lib/netbird/setup-key"
     ENROLLED_MARKER="/var/lib/netbird/.enrolled"
     MANAGEMENT_URL="${cfg.managementUrl}"
+    CONFIG_FILE="/var/lib/netbird/config.json"
 
     # Check if already enrolled
     if [ -f "$ENROLLED_MARKER" ]; then
       echo "Netbird already enrolled"
+      # Try to connect if not connected
+      ${pkgs.netbird}/bin/netbird up 2>/dev/null || true
       exit 0
     fi
 
@@ -45,69 +48,30 @@ let
       exit 1
     fi
 
-    echo "Installing Netbird service..."
-
-    # First, uninstall any existing service
-    ${pkgs.netbird}/bin/netbird service uninstall 2>/dev/null || true
-
-    # Install the service with proper parameters
-    ${pkgs.netbird}/bin/netbird service install \
-      --config /var/lib/netbird/config.json \
-      --log-file console
-
-    echo "Starting Netbird service..."
-    ${pkgs.netbird}/bin/netbird service start || {
-      echo "Failed to start service via netbird, trying systemctl..."
-      ${pkgs.systemd}/bin/systemctl start netbird || true
-    }
-
-    # Wait for service to be running
-    sleep 5
+    echo "Waiting for Netbird daemon to be ready..."
+    for i in {1..30}; do
+      if ${pkgs.netbird}/bin/netbird status >/dev/null 2>&1; then
+        echo "Netbird daemon is ready"
+        break
+      fi
+      sleep 1
+    done
 
     echo "Enrolling with setup key..."
-    ${pkgs.netbird}/bin/netbird up \
+    if ${pkgs.netbird}/bin/netbird up \
       --setup-key "$SETUP_KEY" \
-      --management-url "$MANAGEMENT_URL" || {
-        echo "Enrollment failed, will retry on next boot"
-        exit 1
-      }
+      --management-url "$MANAGEMENT_URL" \
+      --admin-url "$MANAGEMENT_URL"; then
 
-    echo "Netbird enrollment successful"
-    touch "$ENROLLED_MARKER"
+      echo "Netbird enrollment successful"
+      touch "$ENROLLED_MARKER"
 
-    # Show status
-    ${pkgs.netbird}/bin/netbird status || true
-  '';
-
-  # Auto-connect script for already enrolled devices
-  autoConnectNetbird = pkgs.writeScriptBin "auto-connect-netbird" ''
-    #!${pkgs.bash}/bin/bash
-    set -euo pipefail
-
-    ENROLLED_MARKER="/var/lib/netbird/.enrolled"
-
-    if [ ! -f "$ENROLLED_MARKER" ]; then
-      echo "Device not enrolled, skipping auto-connect"
-      exit 0
-    fi
-
-    # Check if daemon is running
-    if ! ${pkgs.netbird}/bin/netbird status >/dev/null 2>&1; then
-      echo "Netbird daemon not running, starting..."
-      ${pkgs.netbird}/bin/netbird service start 2>/dev/null || \
-        ${pkgs.systemd}/bin/systemctl start netbird || true
-      sleep 3
-    fi
-
-    # Try to connect
-    echo "Connecting to Netbird network..."
-    ${pkgs.netbird}/bin/netbird up || {
-      echo "Connection failed, will retry"
+      # Show status
+      ${pkgs.netbird}/bin/netbird status || true
+    else
+      echo "Enrollment failed, will retry on next boot"
       exit 1
-    }
-
-    echo "Netbird connected successfully"
-    ${pkgs.netbird}/bin/netbird status
+    fi
   '';
 
 in {
@@ -135,12 +99,54 @@ in {
     # Install Netbird package
     environment.systemPackages = [ pkgs.netbird ];
 
-    # Setup service - handles installation and enrollment
-    systemd.services.netbird-setup = {
-      description = "Setup and enroll Netbird";
-      after = [ "network-online.target" "apply-discovery-config.service" ];
+    # Netbird daemon service - NixOS managed
+    systemd.services.netbird = {
+      description = "Netbird VPN Client Daemon";
+      after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
-      requires = [ "apply-discovery-config.service" ];
+      wantedBy = [ "multi-user.target" ];
+
+      serviceConfig = {
+        Type = "simple";
+        ExecStart = "${pkgs.netbird}/bin/netbird service run --config /var/lib/netbird/config.json --log-level info";
+        Restart = "always";
+        RestartSec = "5s";
+
+        # Run as root for network configuration
+        User = "root";
+        Group = "root";
+
+        # Working directory
+        WorkingDirectory = "/var/lib/netbird";
+
+        # Security settings
+        PrivateTmp = true;
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        ReadWritePaths = [ "/var/lib/netbird" "/var/run/netbird" ];
+
+        # Network capabilities
+        AmbientCapabilities = [ "CAP_NET_ADMIN" "CAP_NET_BIND_SERVICE" "CAP_NET_RAW" ];
+        CapabilityBoundingSet = [ "CAP_NET_ADMIN" "CAP_NET_BIND_SERVICE" "CAP_NET_RAW" ];
+      };
+
+      preStart = ''
+        # Ensure directories exist
+        mkdir -p /var/lib/netbird /var/run/netbird
+
+        # Create default config if it doesn't exist
+        if [ ! -f /var/lib/netbird/config.json ]; then
+          echo '{}' > /var/lib/netbird/config.json
+        fi
+      '';
+    };
+
+    # Enrollment service - handles initial enrollment
+    systemd.services.netbird-enroll = {
+      description = "Enroll Netbird with setup key";
+      after = [ "network-online.target" "apply-discovery-config.service" "netbird.service" ];
+      wants = [ "network-online.target" ];
+      requires = [ "apply-discovery-config.service" "netbird.service" ];
       wantedBy = [ "multi-user.target" ];
 
       # Only run if not already enrolled
@@ -151,23 +157,25 @@ in {
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
-        ExecStart = "${setupNetbird}/bin/setup-netbird";
+        ExecStart = "${enrollNetbird}/bin/enroll-netbird";
         StandardOutput = "journal";
         StandardError = "journal";
 
         # Give it time to complete
         TimeoutStartSec = "300";
 
-        # Don't retry - we'll try again on next boot if needed
-        Restart = "no";
+        # Retry on failure
+        Restart = "on-failure";
+        RestartSec = "30s";
+        StartLimitBurst = 3;
       };
     };
 
     # Auto-connect service for already enrolled devices
     systemd.services.netbird-autoconnect = mkIf cfg.autoConnect {
       description = "Auto-connect Netbird VPN";
-      after = [ "network-online.target" "netbird-setup.service" ];
-      wants = [ "network-online.target" ];
+      after = [ "network-online.target" "netbird.service" ];
+      requires = [ "netbird.service" ];
       wantedBy = [ "multi-user.target" ];
 
       # Only run if already enrolled
@@ -178,7 +186,7 @@ in {
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
-        ExecStart = "${autoConnectNetbird}/bin/auto-connect-netbird";
+        ExecStart = "${pkgs.bash}/bin/bash -c '${pkgs.netbird}/bin/netbird up || true'";
         StandardOutput = "journal";
         StandardError = "journal";
 

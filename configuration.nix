@@ -88,36 +88,48 @@ in
     (pkgs.writeScriptBin "netbird-fix" ''
       #!${pkgs.bash}/bin/bash
       echo "=== Netbird Troubleshooting ==="
-      echo "Stopping existing service..."
-      netbird service stop 2>/dev/null || true
-      systemctl stop netbird 2>/dev/null || true
 
-      echo "Uninstalling service..."
-      netbird service uninstall 2>/dev/null || true
-
-      echo "Creating directories..."
-      mkdir -p /var/lib/netbird /var/run/netbird /var/log/netbird
-
-      echo "Reinstalling service..."
-      netbird service install --config /var/lib/netbird/config.json --log-file console
-
-      echo "Starting service..."
-      netbird service start || systemctl start netbird
-
-      echo "Checking status..."
+      echo "Restarting Netbird daemon..."
+      systemctl restart netbird
       sleep 3
-      netbird status
+
+      echo "Checking daemon status..."
+      systemctl status netbird --no-pager
+
+      echo ""
+      echo "Checking Netbird connection..."
+      netbird status || echo "Not connected yet"
+
+      echo ""
+      echo "If not connected, run: netbird-enroll"
     '')
 
     (pkgs.writeScriptBin "netbird-enroll" ''
       #!${pkgs.bash}/bin/bash
       SETUP_KEY_FILE="/var/lib/netbird/setup-key"
+      ENROLLED_MARKER="/var/lib/netbird/.enrolled"
+
+      # Check if already enrolled
+      if [ -f "$ENROLLED_MARKER" ]; then
+        echo "Already enrolled, trying to connect..."
+        netbird up
+        exit 0
+      fi
+
       if [ -f "$SETUP_KEY_FILE" ]; then
         SETUP_KEY=$(cat "$SETUP_KEY_FILE")
         echo "Enrolling with setup key..."
-        netbird up --setup-key "$SETUP_KEY" --management-url https://nb.a28.dev
+        if netbird up --setup-key "$SETUP_KEY" --management-url https://nb.a28.dev; then
+          touch "$ENROLLED_MARKER"
+          echo "Enrollment successful!"
+          netbird status
+        else
+          echo "Enrollment failed"
+          exit 1
+        fi
       else
         echo "No setup key found at $SETUP_KEY_FILE"
+        echo "Run: systemctl status apply-discovery-config"
         exit 1
       fi
     '')
@@ -133,7 +145,7 @@ in
       netbird status 2>/dev/null || echo "Not running"
       echo ""
       echo "=== Services ==="
-      systemctl is-active apply-discovery-config netbird-setup netbird-autoconnect kismet
+      systemctl is-active apply-discovery-config netbird netbird-enroll netbird-autoconnect kismet
     '')
   ];
 
