@@ -288,6 +288,9 @@ in
     extraArgs = [ "-n" "-b" ];  # -n = don't wait for client, -b = broken-device-safety
   };
 
+  # Ensure GPSD waits for USB devices to be available
+  systemd.services.gpsd.after = [ "systemd-udev-settle.service" ];
+
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions
   # on your system were taken. It's perfectly fine and recommended to leave
