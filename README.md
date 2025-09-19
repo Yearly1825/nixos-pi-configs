@@ -63,7 +63,20 @@ nixos-rebuild switch --flake .#sensor
 
 Open ports: 22 (SSH), 2501 (Kismet Web UI)
 
-## Build
+## Deployment
+
+### Clone and Apply to Pi
+
+```bash
+# Clone the repository
+git clone <repository-url> /etc/nixos-sensor
+
+# Apply the configuration
+cd /etc/nixos-sensor
+nixos-rebuild switch --flake .#sensor
+```
+
+### Local Build
 
 ```bash
 nixos-rebuild switch --flake .#sensor
