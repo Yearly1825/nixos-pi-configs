@@ -1,367 +1,70 @@
 # NixOS Pi Sensor Configuration
 
-This repository contains the NixOS configuration for Raspberry Pi sensors that are automatically provisioned through the discovery service.
+NixOS configuration for Raspberry Pi sensors with automatic discovery service provisioning. Built with Nix flakes targeting NixOS 25.11.
 
-## Overview
+## Services
 
-This configuration provides:
-- **Automatic hostname assignment** from discovery service
-- **SSH key deployment** for secure remote access
-- **Netbird VPN** auto-connection for remote management
-- **Kismet** network monitoring service
-- **Firewall** configuration with appropriate rules
+### Discovery Config (`discovery-config.nix`)
+- Reads configuration from `/var/lib/nixos-bootstrap/discovery_config.json`
+- Applies SSH keys to root and nixos users
+- Stores Netbird setup key for VPN enrollment
+- Sets hostname from discovery service
 
-## How It Works
+### Netbird VPN (`netbird.nix`)
+- Auto-enrollment using setup key from discovery config
+- Connects to `https://nb.a28.dev` management server
+- Creates `wt0` interface for VPN traffic
+- Firewall allows UDP 51820 and trusts `wt0` interface
 
-1. **Bootstrap Phase**: The Pi boots with a bootstrap image and registers with the discovery service
-2. **Configuration Retrieval**: The Pi receives:
-   - Unique hostname (e.g., `SENSOR-01`, `SENSOR-02`)
-   - SSH public keys for access
-   - Netbird setup key for VPN enrollment
-3. **Configuration Application**: This repository's configuration is applied via `nixos-rebuild boot`
-4. **Services Startup**: After reboot, the Pi:
-   - Sets its hostname from the discovery configuration
-   - Applies SSH keys for secure access
-   - Connects to Netbird VPN automatically
-   - Starts Kismet monitoring service
+### Kismet Network Monitor (`kismet.nix`)
+- Web UI on port 2501 (username: `kismet`, password: `kismet`)
+- Logs to `/var/lib/kismet/logs/`
+- Config directory: `/root/.kismet/`
+- Auto-restart every hour for log rotation
+- Default sources: `wlp1s0u1u1`, `wlp1s0u1u2`, `wlp1s0u1u3`, `wlp1s0u1u4`
 
-## Modules
+## Building and Deployment
 
-### `discovery-config.nix`
-Reads configuration from `/var/lib/nixos-bootstrap/discovery_config.json` and applies:
-- SSH key deployment to root and nixos users
-- Netbird setup key storage
-(Note: Hostname is set declaratively in configuration.nix by reading the discovery config file)
-
-### `netbird.nix`
-Manages Netbird VPN connection:
-- One-time enrollment using setup key
-- Automatic connection on boot
-- Reconnection on network changes
-
-### `kismet.nix`
-Configures Kismet network monitoring:
-- Web UI on port 2501
-- Customizable monitoring interfaces
-- GPS support (optional)
-- RTL-SDR support for radio monitoring
-- Logging and alerting
-- Configs symlinked to ~/.kismet/ for easy management
-- Automatic hourly restart for log rotation
-
-## Configuration
-
-### Basic Configuration
-
-The default configuration in `configuration.nix` provides a working setup with:
-- SSH access (key-only authentication)
-- Netbird VPN connection
-- Kismet with web UI
-- Open firewall ports (22, 2501)
-
-### Customization
-
-The Kismet module uses a clean approach where all Kismet configs are symlinked to `/root/.kismet/` and your custom `kismet_site.conf` is placed there:
-
-```nix
-services.kismet-sensor = {
-  enable = true;
-  
-  # The extraConfig becomes /root/.kismet/kismet_site.conf
-  # Override the default config as needed:
-  extraConfig = ''
-    # Logging
-    log_prefix=/var/lib/kismet/logs/
-    log_title=sensor-%Y-%m-%d-%H-%M-%S
-    log_types=kismet,pcapng
-    
-    # Network Interfaces
-    source=wlan0:type=linuxwifi,hop=true,hop_channels="1,2,3,4,5,6,7,8,9,10,11"
-    
-    # GPS
-    gps=true
-    gpshost=127.0.0.1
-    gpsport=2947
-    
-    # Web UI
-    httpd_bind_address=0.0.0.0
-    httpd_port=2501
-    httpd_username=admin
-    httpd_password=changeme
-    
-    # RTL-SDR support (optional)
-    # source=rtl433-0:type=rtl433,device=0
-  '';
-};
-```
-
-The module automatically:
-- Links all default Kismet configs to `/root/.kismet/`
-- Writes your `extraConfig` as `kismet_site.conf`
-- Starts Kismet with `--confdir /root/.kismet`
-
-## Kismet Configuration
-
-### Monitoring Interfaces
-
-Configure which interfaces to monitor in `configuration.nix`:
-
-```nix
-services.kismet-sensor.interfaces = [
-  # 2.4GHz monitoring
-  "wlan0:type=linuxwifi,hop=true,hop_channels=\"1,6,11\""
-  
-  # 5GHz monitoring (if you have a second adapter)
-  "wlan1:type=linuxwifi,hop=true,hop_channels=\"36,40,44,48\""
-];
-```
-
-### Web UI Access
-
-Default credentials:
-- URL: `http://<pi-ip>:2501`
-- Username: `kismet`
-- Password: `changeme`
-
-**Important**: Change these in production!
-
-### GPS Support
-
-If you have a GPS module connected:
-
-```nix
-services.kismet-sensor.gps = {
-  enable = true;
-  host = "127.0.0.1";
-  port = 2947;
-};
-```
-
-## Accessing Your Sensors
-
-### Via Netbird VPN
-
-Once enrolled, sensors are accessible via their Netbird IP:
-```bash
-# Check Netbird status
-netbird status
-
-# SSH to sensor
-ssh root@<netbird-ip>
-```
-
-### Via Local Network
-
-If on the same network:
-```bash
-# SSH access
-ssh root@<sensor-hostname>.local
-
-# Kismet Web UI
-http://<sensor-hostname>.local:2501
-```
-
-## Monitoring and Maintenance
-
-### Check Service Status
+This configuration uses Nix flakes. To build:
 
 ```bash
-# Netbird VPN status
-systemctl status netbird
-netbird status
+# Build the configuration
+nix build .#nixosConfigurations.sensor.config.system.build.toplevel
 
-# Kismet status
-systemctl status kismet
-journalctl -u kismet -f
-
-# Discovery config application
-systemctl status apply-discovery-config
-
-# Kismet configuration helper
-kismet-config  # Shows config status and location
-
-# Kismet log rotation status
-kismet-logs  # Shows log files and rotation timer
+# Apply to a running system
+nixos-rebuild switch --flake .#sensor
 ```
 
-### View Logs
+### GPS Daemon
+- GPSD listens on devices: `/dev/ttyUSB0`, `/dev/ttyACM0`
+- Port 2947 for GPS data
+- Kismet configured to use `gpsd:host=localhost,port=2947`
+
+## Installed Packages
+
+**Network Monitoring:**
+- kismet, aircrack-ng, hcxdumptool, hcxtools
+- tcpdump, wireshark-cli, nmap, iftop, netcat-gnu
+
+**GPS Tools:**
+- gpsd, python3-gps3
+
+**RTL-SDR:**
+- rtl-sdr, rtl_433
+
+**System Tools:**
+- git, curl, jq, wget, vim, htop, tmux, iotop, nethogs
+
+**Helper Scripts:**
+- `netbird-fix`, `netbird-enroll`, `sensor-status`
+- `gps-check`, `kismet-config`, `kismet-logs`
+
+## Firewall
+
+Open ports: 22 (SSH), 2501 (Kismet Web UI)
+
+## Build
 
 ```bash
-# Kismet logs
-ls -la /var/lib/kismet/logs/
-
-# System logs
-journalctl -xe
+nixos-rebuild switch --flake .#sensor
 ```
-
-### Manual Service Control
-
-```bash
-# Restart Kismet
-systemctl restart kismet
-
-# Reconnect Netbird
-netbird down
-netbird up
-
-# Rebuild configuration
-nixos-rebuild switch
-```
-
-## Troubleshooting
-
-### Netbird Won't Connect
-
-1. Check setup key is present:
-   ```bash
-   cat /var/lib/netbird/setup-key
-   ```
-
-2. Check enrollment status:
-   ```bash
-   ls -la /var/lib/netbird/.enrolled
-   ```
-
-3. Use the helper scripts:
-   ```bash
-   # Fix Netbird service issues
-   netbird-fix
-   
-   # Manually enroll with saved setup key
-   netbird-enroll
-   
-   # Check overall sensor status
-   sensor-status
-   ```
-
-4. Manual troubleshooting:
-   ```bash
-   # Stop everything
-   netbird service stop
-   systemctl stop netbird
-   
-   # Reinstall service
-   netbird service uninstall
-   netbird service install --config /var/lib/netbird/config.json
-   
-   # Start and enroll
-   netbird service start
-   netbird up --setup-key $(cat /var/lib/netbird/setup-key) --management-url https://nb.a28.dev
-   ```
-
-5. Check logs:
-   ```bash
-   journalctl -u netbird-setup -f
-   journalctl -u netbird-autoconnect -f
-   ```
-
-### Kismet Issues
-
-1. Check if interface exists:
-   ```bash
-   ip link show
-   iw dev
-   ```
-
-2. Manually set monitor mode:
-   ```bash
-   iw wlan0 set type monitor
-   ip link set wlan0 up
-   ```
-
-3. Check Kismet logs:
-   ```bash
-   journalctl -u kismet -n 100
-   ```
-
-4. Check Kismet configuration:
-   ```bash
-   kismet-config  # Shows config status
-   ls -la /root/.kismet/  # See all config files
-   cat /root/.kismet/kismet_site.conf  # View site config
-   ```
-
-5. Test Kismet manually:
-   ```bash
-   kismet --no-ncurses --confdir /root/.kismet
-   ```
-
-6. Check log rotation:
-   ```bash
-   kismet-logs  # Shows log status and timer
-   systemctl status kismet-restart.timer
-   ```
-
-### SSH Access Problems
-
-1. Verify SSH keys were applied:
-   ```bash
-   cat /root/.ssh/authorized_keys
-   ```
-
-2. Check discovery config:
-   ```bash
-   cat /var/lib/nixos-bootstrap/discovery_config.json
-   ```
-
-## Security Considerations
-
-1. **Change default passwords**: Modify Kismet web UI credentials in production
-2. **SSH security**: Only key-based authentication is enabled
-3. **Firewall**: Only necessary ports are open (22, 2501)
-4. **VPN-only access**: Consider restricting SSH/Kismet to VPN interface only
-5. **Regular updates**: Keep the configuration updated with `nixos-rebuild`
-
-## Advanced Configuration
-
-### Restrict Services to VPN Only
-
-To make SSH and Kismet accessible only via VPN:
-
-```nix
-# In configuration.nix
-services.openssh.listenAddresses = [
-  { addr = "100.64.0.1"; port = 22; }  # Netbird IP only
-];
-
-services.kismet-sensor.httpd.bindAddress = "100.64.0.1";  # Netbird IP only
-```
-
-### Custom Monitoring Scripts
-
-Add custom monitoring tools:
-
-```nix
-environment.systemPackages = [
-  (pkgs.writeScriptBin "sensor-status" ''
-    #!/usr/bin/env bash
-    echo "=== Sensor Status ==="
-    echo "Hostname: $(hostname)"
-    echo "Uptime: $(uptime)"
-    echo "=== Network ==="
-    ip addr show dev wt0 | grep inet
-    echo "=== Services ==="
-    systemctl is-active netbird kismet
-  '')
-];
-```
-
-### Performance Tuning
-
-For better packet capture performance:
-
-```nix
-boot.kernel.sysctl = {
-  "net.core.rmem_max" = 134217728;
-  "net.core.wmem_max" = 134217728;
-  "net.core.netdev_max_backlog" = 5000;
-};
-```
-
-## Support
-
-For issues or questions:
-1. Check service logs with `journalctl`
-2. Verify discovery configuration in `/var/lib/nixos-bootstrap/`
-3. Ensure all required services are running
-4. Check network connectivity and firewall rules
