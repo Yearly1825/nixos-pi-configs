@@ -212,6 +212,31 @@ in
       echo "4. Edit site config:"
       echo "Run: vim /root/.kismet/kismet_site.conf"
     '')
+
+    (pkgs.writeScriptBin "kismet-logs" ''
+      #!${pkgs.bash}/bin/bash
+      echo "=== Kismet Log Rotation Status ==="
+      echo ""
+      echo "1. Current Kismet logs:"
+      ls -lah /var/lib/kismet/logs/ | tail -10
+      echo ""
+      echo "2. Total log size:"
+      du -sh /var/lib/kismet/logs/
+      echo ""
+      echo "3. Restart timer status:"
+      systemctl status kismet-restart.timer --no-pager | grep -E "(Active|Trigger)"
+      echo ""
+      echo "4. Last restart:"
+      journalctl -u kismet-restart.service -n 1 --no-pager
+      echo ""
+      echo "5. Next restart:"
+      systemctl list-timers kismet-restart --no-pager
+      echo ""
+      echo "Commands:"
+      echo "  Manual restart: systemctl restart kismet"
+      echo "  Disable timer:  systemctl stop kismet-restart.timer"
+      echo "  Enable timer:   systemctl start kismet-restart.timer"
+    '')
   ];
 
   # Firewall configuration

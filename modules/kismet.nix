@@ -130,6 +130,26 @@ in {
       '';
     };
 
+    # Timer to restart Kismet every hour for log rotation
+    systemd.timers.kismet-restart = {
+      description = "Restart Kismet hourly for log rotation";
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnBootSec = "1h";
+        OnUnitActiveSec = "1h";
+        Unit = "kismet-restart.service";
+      };
+    };
+
+    # Service to handle the Kismet restart
+    systemd.services.kismet-restart = {
+      description = "Restart Kismet for log rotation";
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.systemd}/bin/systemctl restart kismet.service";
+      };
+    };
+
     # Open firewall ports for Kismet (default 2501)
     networking.firewall.allowedTCPPorts = [ 2501 ];
 

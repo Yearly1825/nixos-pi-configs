@@ -47,6 +47,7 @@ Configures Kismet network monitoring:
 - RTL-SDR support for radio monitoring
 - Logging and alerting
 - Configs symlinked to ~/.kismet/ for easy management
+- Automatic hourly restart for log rotation
 
 ## Configuration
 
@@ -178,6 +179,9 @@ systemctl status apply-discovery-config
 
 # Kismet configuration helper
 kismet-config  # Shows config status and location
+
+# Kismet log rotation status
+kismet-logs  # Shows log files and rotation timer
 ```
 
 ### View Logs
@@ -280,6 +284,12 @@ nixos-rebuild switch
 5. Test Kismet manually:
    ```bash
    kismet --no-ncurses --confdir /root/.kismet
+   ```
+
+6. Check log rotation:
+   ```bash
+   kismet-logs  # Shows log status and timer
+   systemctl status kismet-restart.timer
    ```
 
 ### SSH Access Problems
