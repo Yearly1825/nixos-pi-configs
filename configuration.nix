@@ -290,6 +290,7 @@ in
 
   # Ensure GPSD waits for USB devices to be available
   systemd.services.gpsd.after = [ "systemd-udev-settle.service" ];
+  systemd.services.gpsd.serviceConfig.ExecStartPre = "${pkgs.coreutils}/bin/sleep 15";
 
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions

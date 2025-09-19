@@ -83,7 +83,7 @@ in {
     # Kismet service
     systemd.services.kismet = {
       description = "Kismet Wireless Network Detector";
-      after = [ "network-online.target" "systemd-udev-settle.service" ];
+      after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
 
