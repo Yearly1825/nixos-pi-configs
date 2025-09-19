@@ -188,6 +188,30 @@ in
       echo "- Restart GPSD: systemctl restart gpsd"
       echo "- Monitor GPS: cgps or gpsmon"
     '')
+
+    (pkgs.writeScriptBin "kismet-config" ''
+      #!${pkgs.bash}/bin/bash
+      echo "=== Kismet Configuration Helper ==="
+      echo ""
+      echo "Config directory: /root/.kismet/"
+      echo ""
+      echo "1. Checking config links:"
+      ls -la /root/.kismet/*.conf | head -5
+      echo ""
+      echo "2. Site config:"
+      if [ -f /root/.kismet/kismet_site.conf ]; then
+        echo "kismet_site.conf exists:"
+        head -10 /root/.kismet/kismet_site.conf
+      else
+        echo "No kismet_site.conf found"
+      fi
+      echo ""
+      echo "3. Test Kismet with current config:"
+      echo "Run: kismet --no-ncurses --confdir /root/.kismet"
+      echo ""
+      echo "4. Edit site config:"
+      echo "Run: vim /root/.kismet/kismet_site.conf"
+    '')
   ];
 
   # Firewall configuration

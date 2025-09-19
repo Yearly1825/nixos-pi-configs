@@ -8,8 +8,7 @@ with lib;
 let
   cfg = config.services.kismet-sensor;
 
-  # Simple Kismet configuration - just write extraConfig directly
-  # This file is used with -o flag to override defaults (not replace them)
+  # Kismet configuration - written to ~/.kismet/kismet_site.conf
   kismetSiteConf = pkgs.writeText "kismet_site.conf" cfg.extraConfig;
 
 in {
@@ -73,7 +72,14 @@ in {
       tcpdump
       wireshark-cli
       gpsd  # GPS daemon
-      (python3.withPackages (ps: with ps; [ gps3 ]))  # GPS Python tools
+      rtl-sdr  # RTL-SDR support
+      rtl_433  # RTL-433 decoder
+      (python3.withPackages (ps: with ps; [
+        gps3  # GPS Python tools
+        setuptools  # For Python entry points
+        protobuf  # For Kismet communication
+        numpy  # Often required by capture tools
+      ]))
     ];
 
     # Kismet service
@@ -84,8 +90,8 @@ in {
 
       serviceConfig = {
         Type = "simple";
-        # Use -o to override config (not -f which replaces entire config)
-        ExecStart = "${pkgs.kismet}/bin/kismet --no-ncurses --override site -f ${kismetSiteConf}";
+        # Use --confdir to specify our config directory with all configs
+        ExecStart = "${pkgs.kismet}/bin/kismet --no-ncurses --confdir /root/.kismet";
         Restart = "always";
         RestartSec = "10s";
 
@@ -106,17 +112,32 @@ in {
         # Ensure data directories exist
         mkdir -p ${cfg.dataDir}/logs
         mkdir -p ${cfg.dataDir}/data
+
+        # Create ~/.kismet directory
+        mkdir -p /root/.kismet
+
+        # Link all default Kismet configs to ~/.kismet
+        for conf in ${pkgs.kismet}/etc/kismet*.conf; do
+          basename=$(basename "$conf")
+          if [ ! -e "/root/.kismet/$basename" ]; then
+            ln -sf "$conf" "/root/.kismet/$basename"
+          fi
+        done
+
+        # Write our site config to ~/.kismet/kismet_site.conf
+        cp ${kismetSiteConf} /root/.kismet/kismet_site.conf
       '';
     };
 
     # Open firewall ports for Kismet (default 2501)
     networking.firewall.allowedTCPPorts = [ 2501 ];
 
-    # Create Kismet data directory
+    # Create Kismet data directory and config directory
     systemd.tmpfiles.rules = [
       "d ${cfg.dataDir} 0750 root root -"
       "d ${cfg.dataDir}/logs 0750 root root -"
       "d ${cfg.dataDir}/data 0750 root root -"
+      "d /root/.kismet 0750 root root -"
     ];
 
     # GPS support is configured in configuration.nix when gps.enable = true

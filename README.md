@@ -44,7 +44,9 @@ Configures Kismet network monitoring:
 - Web UI on port 2501
 - Customizable monitoring interfaces
 - GPS support (optional)
+- RTL-SDR support for radio monitoring
 - Logging and alerting
+- Configs symlinked to ~/.kismet/ for easy management
 
 ## Configuration
 
@@ -58,36 +60,44 @@ The default configuration in `configuration.nix` provides a working setup with:
 
 ### Customization
 
-Edit the Kismet configuration directly in `configuration.nix`:
+The Kismet module uses a clean approach where all Kismet configs are symlinked to `/root/.kismet/` and your custom `kismet_site.conf` is placed there:
 
 ```nix
 services.kismet-sensor = {
   enable = true;
   
-  # Configure monitoring interfaces
-  interfaces = [
-    "wlan0:type=linuxwifi,hop=true,hop_channels=\"1,2,3,4,5,6,7,8,9,10,11\""
-  ];
-  
-  # Web UI credentials
-  httpd = {
-    username = "admin";
-    password = "your-secure-password";
-  };
-  
-  # GPS settings
-  gps = {
-    enable = true;
-    host = "127.0.0.1";
-    port = 2947;
-  };
-  
-  # Additional Kismet configuration
+  # The extraConfig becomes /root/.kismet/kismet_site.conf
+  # Override the default config as needed:
   extraConfig = ''
-    # Your custom configuration here
+    # Logging
+    log_prefix=/var/lib/kismet/logs/
+    log_title=sensor-%Y-%m-%d-%H-%M-%S
+    log_types=kismet,pcapng
+    
+    # Network Interfaces
+    source=wlan0:type=linuxwifi,hop=true,hop_channels="1,2,3,4,5,6,7,8,9,10,11"
+    
+    # GPS
+    gps=true
+    gpshost=127.0.0.1
+    gpsport=2947
+    
+    # Web UI
+    httpd_bind_address=0.0.0.0
+    httpd_port=2501
+    httpd_username=admin
+    httpd_password=changeme
+    
+    # RTL-SDR support (optional)
+    # source=rtl433-0:type=rtl433,device=0
   '';
 };
 ```
+
+The module automatically:
+- Links all default Kismet configs to `/root/.kismet/`
+- Writes your `extraConfig` as `kismet_site.conf`
+- Starts Kismet with `--confdir /root/.kismet`
 
 ## Kismet Configuration
 
@@ -165,6 +175,9 @@ journalctl -u kismet -f
 
 # Discovery config application
 systemctl status apply-discovery-config
+
+# Kismet configuration helper
+kismet-config  # Shows config status and location
 ```
 
 ### View Logs
@@ -255,6 +268,18 @@ nixos-rebuild switch
 3. Check Kismet logs:
    ```bash
    journalctl -u kismet -n 100
+   ```
+
+4. Check Kismet configuration:
+   ```bash
+   kismet-config  # Shows config status
+   ls -la /root/.kismet/  # See all config files
+   cat /root/.kismet/kismet_site.conf  # View site config
+   ```
+
+5. Test Kismet manually:
+   ```bash
+   kismet --no-ncurses --confdir /root/.kismet
    ```
 
 ### SSH Access Problems
