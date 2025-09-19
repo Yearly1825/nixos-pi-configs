@@ -24,8 +24,9 @@ in {
       default = ''
         # Logging
         log_prefix=/var/lib/kismet/logs/
-        log_title=sensor-%Y-%m-%d-%H-%M-%S
-        log_types=kismet
+        log_title=Kismet
+        log_template=%p/%n-%D-%t-%i.%l
+        log_types=kismet,pcapng
 
         # Network Interfaces
         #source=wlan0:type=linuxwifi,hop=true,hop_channels="1,2,3,4,5,6,7,8,9,10,11"
@@ -37,13 +38,10 @@ in {
         gps=gpsd:host=localhost,port=2947
 
         # Web UI
-        #httpd_bind_address=0.0.0.0
-        #httpd_port=2501
-
-        # Alerts
-        alert=APSPOOF,1/min,5/min,0/min
-        alert=CHANCHANGE,1/min,5/min,0/min
-        alert=BCASTDISCON,1/min,5/min,0/min
+        httpd_bind_address=0.0.0.0
+        httpd_port=2501
+        httpd_password=kismet
+        httpd_username=kismet
 
       '';
       example = ''
@@ -109,9 +107,12 @@ in {
       };
 
       preStart = ''
-        # Ensure data directories exist
+        # Ensure data directories exist with proper permissions
         mkdir -p ${cfg.dataDir}/logs
+        chmod 755 ${cfg.dataDir}/logs
         mkdir -p ${cfg.dataDir}/data
+        chmod 755 ${cfg.dataDir}/data
+        chmod 755 ${cfg.dataDir}
 
         # Create ~/.kismet directory
         mkdir -p /root/.kismet
