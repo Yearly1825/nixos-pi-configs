@@ -283,7 +283,7 @@ in
   # Enable GPS daemon
   services.gpsd = {
     enable = true;
-    devices = [ "/dev/ttyUSB0" "/dev/ttyACM0" ];
+    devices = [ "/dev/ttyUSB0" "/dev/ttyUSB1" "/dev/ttyACM0" ];
     nowait = true;
     extraArgs = [ "-n" "-b" ];  # -n = don't wait for client, -b = broken-device-safety
   };
