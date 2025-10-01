@@ -26,7 +26,7 @@ in {
         log_prefix=/var/lib/kismet/logs/
         log_title=Kismet
         log_template=%p/%n-%D-%t-%i.%l
-        log_types=kismet,pcapng
+        log_types=kismet,pcapng,pcapppi
 
         # Network Interfaces
         #source=wlan0:type=linuxwifi,hop=true,hop_channels="1,2,3,4,5,6,7,8,9,10,11"
