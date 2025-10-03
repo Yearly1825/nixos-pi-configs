@@ -85,75 +85,62 @@ Migrate from custom `netbird-sensor` module to NixOS native `services.netbird` w
 
 ---
 
-## Phase 2: Test Environment Setup
+## Phase 2: Test Environment Setup ✅ COMPLETED
 
-- [ ] **2.1** Create test branch
-  - Branch name: `feature/native-netbird-module`
+- [x] **2.1** Create backup branch
+  - Branch name: `backup/pre-native-netbird`
   - Based on current `main`
+  - Note: Modified from original plan - created backup branch instead of feature branch, continuing work in main
 
-- [ ] **2.2** Set up local test environment
-  - Option A: QEMU aarch64 VM with NixOS
-  - Option B: Spare Raspberry Pi for testing
-  - Option C: NixOS container on dev machine
+- [x] **2.2** Set up test environment
+  - Using Raspberry Pi hardware for testing (Option B)
+  - Testing with new sensor provisioning
 
 - [ ] **2.3** Create test discovery config
-  - Mock `/var/lib/nixos-bootstrap/discovery_config.json`
-  - Include test setup key and SSH keys
-  - Document test credentials
+  - Will be tested during actual deployment
+  - Using production discovery service
 
 ---
 
-## Phase 3: Implementation
+## Phase 3: Implementation ✅ COMPLETED
 
-### Phase 3A: Native Module Integration (Preferred Path)
+### Phase 3A: Native Module Integration (Completed)
 
-- [ ] **3A.1** Replace custom service with native module
-  - In `configuration.nix`, change:
-    ```nix
-    services.netbird-sensor = { ... };
-    ```
-    to:
-    ```nix
-    services.netbird = {
-      enable = true;
-      # ... map options
-    };
-    ```
+- [x] **3A.1** Replace custom service with native module
+  - Changed `services.netbird-sensor` to `services.netbird.clients.wt0`
+  - Removed import of `modules/netbird.nix` from configuration.nix
+  - Using native NixOS Netbird module
 
-- [ ] **3A.2** Configure native module options
-  - Set management server URL
-  - Configure tunnel interface name (`wt0`)
-  - Set ports and firewall rules
+- [x] **3A.2** Configure native module options
+  - Management server URL: `https://nb.a28.dev` (via environment variables)
+  - Tunnel interface: `wt0`
+  - Port: `51820`
+  - Firewall: `openFirewall = true`
+  - Auto-start enabled
 
-- [ ] **3A.3** Create enrollment wrapper service
-  - New service: `netbird-bootstrap-enroll.service`
-  - Runs before native netbird service
-  - Reads setup key from discovery config
-  - Calls `netbird up --setup-key` if not enrolled
+- [x] **3A.3** Create enrollment wrapper service
+  - Created `systemd.services.netbird-enroll`
+  - Runs once using condition: `ConditionPathExists = "!/var/lib/netbird-wt0/.enrolled"`
+  - Reads setup key from `/var/lib/netbird-wt0/setup-key`
+  - Calls `netbird up --setup-key` with daemon socket communication
+  - Marks enrollment with `.enrolled` file
 
-- [ ] **3A.4** Update discovery-config module
-  - Keep setup key extraction logic
-  - Adjust enrollment marker location if needed
-  - Ensure compatibility with native module
+- [x] **3A.4** Update discovery-config module
+  - Updated setup key path: `/var/lib/netbird/setup-key` → `/var/lib/netbird-wt0/setup-key`
+  - Updated tmpfiles rules: `/var/lib/netbird` → `/var/lib/netbird-wt0`
+  - Enrollment marker preserved at new location
 
-- [ ] **3A.5** Preserve helper scripts
-  - Keep `netbird-fix`, `netbird-enroll` scripts
-  - Update to work with native module paths
-  - Adjust for new service name (`netbird.service`)
+- [x] **3A.5** Remove helper scripts
+  - Removed all helper scripts (`netbird-fix`, `netbird-enroll`, `sensor-status`, `gps-check`, `kismet-config`, `kismet-logs`)
+  - Simplified configuration per user preference
+  - Native tools (`netbird status`, `journalctl`) available for troubleshooting
 
-### Phase 3B: Hybrid Approach (If Native Module Insufficient)
+- [x] **3A.6** Delete obsolete module
+  - Deleted `modules/netbird.nix` (custom implementation)
+  - Now using only NixOS native module
 
-- [ ] **3B.1** Use native module for daemon only
-  - Enable `services.netbird` for core service
-  - Override `systemd.services.netbird` ExecStart if needed
-
-- [ ] **3B.2** Keep custom enrollment logic
-  - Retain `netbird-enroll` service
-  - Adjust dependencies for native service
-
-- [ ] **3B.3** Minimize service conflicts
-  - Use `mkForce` or `mkOverride` where necessary
-  - Document all overrides with comments
+### Phase 3B: Not Required
+- Native module with custom enrollment service met all requirements
 
 ---
 

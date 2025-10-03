@@ -19,7 +19,6 @@ in
       ./hardware-configuration.nix
       # Import custom modules
       ./modules/discovery-config.nix
-      ./modules/netbird.nix
       ./modules/kismet.nix
     ];
 
@@ -83,9 +82,6 @@ in
     iftop
     netcat-gnu
 
-    # GPS support
-    gpsd
-
     # Additional system tools
     iotop
     nethogs
@@ -94,149 +90,8 @@ in
     gpsd
     (python3.withPackages (ps: with ps; [ gps3 ]))
 
-    # Netbird troubleshooting helper scripts
-    (pkgs.writeScriptBin "netbird-fix" ''
-      #!${pkgs.bash}/bin/bash
-      echo "=== Netbird Troubleshooting ==="
-
-      echo "Restarting Netbird daemon..."
-      systemctl restart netbird
-      sleep 3
-
-      echo "Checking daemon status..."
-      systemctl status netbird --no-pager
-
-      echo ""
-      echo "Checking Netbird connection..."
-      netbird status || echo "Not connected yet"
-
-      echo ""
-      echo "If not connected, run: netbird-enroll"
-    '')
-
-    (pkgs.writeScriptBin "netbird-enroll" ''
-      #!${pkgs.bash}/bin/bash
-      SETUP_KEY_FILE="/var/lib/netbird/setup-key"
-      ENROLLED_MARKER="/var/lib/netbird/.enrolled"
-
-      # Check if already enrolled
-      if [ -f "$ENROLLED_MARKER" ]; then
-        echo "Already enrolled, trying to connect..."
-        netbird up
-        exit 0
-      fi
-
-      if [ -f "$SETUP_KEY_FILE" ]; then
-        SETUP_KEY=$(cat "$SETUP_KEY_FILE")
-        echo "Enrolling with setup key..."
-        if netbird up --setup-key "$SETUP_KEY" --management-url https://nb.a28.dev; then
-          touch "$ENROLLED_MARKER"
-          echo "Enrollment successful!"
-          netbird status
-        else
-          echo "Enrollment failed"
-          exit 1
-        fi
-      else
-        echo "No setup key found at $SETUP_KEY_FILE"
-        echo "Run: systemctl status apply-discovery-config"
-        exit 1
-      fi
-    '')
-
-    (pkgs.writeScriptBin "sensor-status" ''
-      #!${pkgs.bash}/bin/bash
-      echo "=== Sensor Status ==="
-      echo "Hostname: $(hostname)"
-      echo "Discovery Config:"
-      cat /var/lib/nixos-bootstrap/discovery_config.json 2>/dev/null | jq . || echo "Not found"
-      echo ""
-      echo "=== Netbird Status ==="
-      netbird status 2>/dev/null || echo "Not running"
-      echo ""
-      echo "=== Services ==="
-      systemctl is-active apply-discovery-config netbird netbird-enroll netbird-autoconnect kismet
-    '')
-
-    (pkgs.writeScriptBin "gps-check" ''
-      #!${pkgs.bash}/bin/bash
-      echo "=== GPS Troubleshooting ==="
-      echo ""
-      echo "1. Checking for GPS devices:"
-      ls -la /dev/ttyUSB* /dev/ttyACM* 2>/dev/null || echo "No USB GPS devices found"
-
-      echo ""
-      echo "2. GPSD service status:"
-      systemctl status gpsd --no-pager
-
-      echo ""
-      echo "3. GPSD socket:"
-      ls -la /var/run/gpsd* 2>/dev/null || echo "No GPSD socket found"
-
-      echo ""
-      echo "4. Testing GPSD connection:"
-      timeout 2 gpspipe -r -n 5 2>/dev/null || echo "Could not connect to GPSD"
-
-      echo ""
-      echo "5. Available GPS tools:"
-      which cgps gpsmon gpspipe
-
-      echo ""
-      echo "Tips:"
-      echo "- Make sure GPS device is plugged into USB"
-      echo "- Common devices: /dev/ttyUSB0, /dev/ttyACM0"
-      echo "- Restart GPSD: systemctl restart gpsd"
-      echo "- Monitor GPS: cgps or gpsmon"
-    '')
-
-    (pkgs.writeScriptBin "kismet-config" ''
-      #!${pkgs.bash}/bin/bash
-      echo "=== Kismet Configuration Helper ==="
-      echo ""
-      echo "Config directory: /root/.kismet/"
-      echo ""
-      echo "1. Checking config links:"
-      ls -la /root/.kismet/*.conf | head -5
-      echo ""
-      echo "2. Site config:"
-      if [ -f /root/.kismet/kismet_site.conf ]; then
-        echo "kismet_site.conf exists:"
-        head -10 /root/.kismet/kismet_site.conf
-      else
-        echo "No kismet_site.conf found"
-      fi
-      echo ""
-      echo "3. Test Kismet with current config:"
-      echo "Run: kismet --no-ncurses --confdir /root/.kismet"
-      echo ""
-      echo "4. Edit site config:"
-      echo "Run: vim /root/.kismet/kismet_site.conf"
-    '')
-
-    (pkgs.writeScriptBin "kismet-logs" ''
-      #!${pkgs.bash}/bin/bash
-      echo "=== Kismet Log Rotation Status ==="
-      echo ""
-      echo "1. Current Kismet logs:"
-      ls -lah /var/lib/kismet/logs/ | tail -10
-      echo ""
-      echo "2. Total log size:"
-      du -sh /var/lib/kismet/logs/
-      echo ""
-      echo "3. Restart timer status:"
-      systemctl status kismet-restart.timer --no-pager | grep -E "(Active|Trigger)"
-      echo ""
-      echo "4. Last restart:"
-      journalctl -u kismet-restart.service -n 1 --no-pager
-      echo ""
-      echo "5. Next restart:"
-      systemctl list-timers kismet-restart --no-pager
-      echo ""
-      echo "Commands:"
-      echo "  Manual restart: systemctl restart kismet"
-      echo "  Disable timer:  systemctl stop kismet-restart.timer"
-      echo "  Enable timer:   systemctl start kismet-restart.timer"
-    '')
+    # Netbird VPN client
+    netbird
   ];
 
   # Firewall configuration
@@ -251,11 +106,98 @@ in
   # Enable discovery configuration service
   services.discovery-config.enable = true;
 
-  # Enable and configure Netbird VPN
-  services.netbird-sensor = {
+  # Enable and configure Netbird VPN using native NixOS module
+  services.netbird = {
     enable = true;
-    managementUrl = "https://nb.a28.dev";
-    autoConnect = true;
+    clients.wt0 = {
+      autoStart = true;
+      port = 51820;
+      interface = "wt0";
+      openFirewall = true;
+      logLevel = "info";
+      environment = {
+        NB_MANAGEMENT_URL = "https://nb.a28.dev";
+        NB_ADMIN_URL = "https://nb.a28.dev";
+      };
+    };
+  };
+
+  # Netbird enrollment service - runs once to authenticate with setup key
+  systemd.services.netbird-enroll = {
+    description = "Enroll Netbird with setup key from discovery config";
+    after = [ "network-online.target" "apply-discovery-config.service" "netbird-wt0.service" ];
+    wants = [ "network-online.target" ];
+    requires = [ "apply-discovery-config.service" "netbird-wt0.service" ];
+    wantedBy = [ "multi-user.target" ];
+
+    # Only run if not already enrolled
+    unitConfig = {
+      ConditionPathExists = "!/var/lib/netbird-wt0/.enrolled";
+    };
+
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = pkgs.writeScript "netbird-enroll.sh" ''
+        #!${pkgs.bash}/bin/bash
+        set -euo pipefail
+
+        SETUP_KEY_FILE="/var/lib/netbird-wt0/setup-key"
+        ENROLLED_MARKER="/var/lib/netbird-wt0/.enrolled"
+
+        # Wait for setup key from discovery config
+        MAX_WAIT=60
+        WAITED=0
+        while [ ! -f "$SETUP_KEY_FILE" ] && [ $WAITED -lt $MAX_WAIT ]; do
+          echo "Waiting for Netbird setup key from discovery config..."
+          sleep 5
+          WAITED=$((WAITED + 5))
+        done
+
+        if [ ! -f "$SETUP_KEY_FILE" ]; then
+          echo "Error: Setup key not found at $SETUP_KEY_FILE"
+          exit 1
+        fi
+
+        SETUP_KEY=$(cat "$SETUP_KEY_FILE")
+
+        if [ -z "$SETUP_KEY" ] || [ "$SETUP_KEY" = "null" ]; then
+          echo "Error: Invalid setup key"
+          exit 1
+        fi
+
+        # Wait for daemon to be ready
+        echo "Waiting for Netbird daemon..."
+        for i in {1..30}; do
+          if ${pkgs.netbird}/bin/netbird --daemon-addr unix:///var/run/netbird-wt0/sock status >/dev/null 2>&1; then
+            echo "Netbird daemon ready"
+            break
+          fi
+          sleep 1
+        done
+
+        # Enroll with setup key
+        echo "Enrolling with Netbird management server..."
+        if ${pkgs.netbird}/bin/netbird --daemon-addr unix:///var/run/netbird-wt0/sock up \
+          --setup-key "$SETUP_KEY" \
+          --management-url "https://nb.a28.dev" \
+          --admin-url "https://nb.a28.dev"; then
+
+          echo "Enrollment successful!"
+          touch "$ENROLLED_MARKER"
+          ${pkgs.netbird}/bin/netbird --daemon-addr unix:///var/run/netbird-wt0/sock status || true
+        else
+          echo "Enrollment failed, will retry on next boot"
+          exit 1
+        fi
+      '';
+      StandardOutput = "journal";
+      StandardError = "journal";
+      TimeoutStartSec = "300";
+      Restart = "on-failure";
+      RestartSec = "30s";
+      StartLimitBurst = 3;
+    };
   };
 
   # Enable and configure Kismet

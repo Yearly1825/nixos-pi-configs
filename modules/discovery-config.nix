@@ -69,9 +69,9 @@ let
     # Save Netbird setup key to a secure location for the netbird service to use
     NETBIRD_KEY=$(${pkgs.jq}/bin/jq -r '.netbird_setup_key' "$CONFIG_FILE")
     if [ -n "$NETBIRD_KEY" ] && [ "$NETBIRD_KEY" != "null" ]; then
-      mkdir -p /var/lib/netbird
-      echo "$NETBIRD_KEY" > /var/lib/netbird/setup-key
-      chmod 600 /var/lib/netbird/setup-key
+      mkdir -p /var/lib/netbird-wt0
+      echo "$NETBIRD_KEY" > /var/lib/netbird-wt0/setup-key
+      chmod 600 /var/lib/netbird-wt0/setup-key
       echo "Netbird setup key saved"
     fi
 
@@ -107,9 +107,9 @@ in {
       };
     };
 
-    # Ensure netbird directory exists
+    # Ensure netbird-wt0 directory exists for native module
     systemd.tmpfiles.rules = [
-      "d /var/lib/netbird 0700 root root -"
+      "d /var/lib/netbird-wt0 0700 root root -"
     ];
   };
 }
