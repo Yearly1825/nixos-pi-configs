@@ -108,7 +108,7 @@ in {
 
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${pkgs.netbird}/bin/netbird service run --config /var/lib/netbird/config.json --log-level info";
+        ExecStart = "${pkgs.netbird}/bin/netbird service run --config /var/lib/netbird/config.json --log-level info --log-file console";
         Restart = "always";
         RestartSec = "5s";
 
