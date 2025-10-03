@@ -90,6 +90,12 @@ in
     gpsd
     (python3.withPackages (ps: with ps; [ gps3 ]))
 
+    # Serial communication
+    minicom
+
+    # Wireless tools
+    iw
+
     # Netbird VPN client
     netbird
   ];
@@ -225,7 +231,7 @@ in
   # Enable GPS daemon
   services.gpsd = {
     enable = true;
-    devices = [ "/dev/ttyUSB0" "/dev/ttyUSB1" "/dev/ttyACM0" ];
+    devices = [ "/dev/ttyUSB1" ];
     nowait = true;
     extraArgs = [ "-n" "-b" ];  # -n = don't wait for client, -b = broken-device-safety
   };
