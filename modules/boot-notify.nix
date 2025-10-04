@@ -9,8 +9,7 @@ let
   cfg = config.services.boot-notify;
 
   # Script to send boot notification
-  bootNotifyScript = pkgs.writeScriptBin "boot-notify" ''
-    #!${pkgs.bash}/bin/bash
+  bootNotifyScript = pkgs.writeShellScriptBin "boot-notify" ''
     set -euo pipefail
 
     NTFY_CONFIG="/var/lib/sensor-ntfy/config.json"
