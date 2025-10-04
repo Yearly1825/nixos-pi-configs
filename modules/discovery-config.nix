@@ -75,6 +75,19 @@ let
       echo "Netbird setup key saved"
     fi
 
+    # Save NTFY configuration for boot notifications
+    echo "Extracting NTFY configuration..."
+    NTFY_CONFIG=$(${pkgs.jq}/bin/jq -c '.ntfy_config' "$CONFIG_FILE" 2>/dev/null || echo "null")
+
+    if [ -n "$NTFY_CONFIG" ] && [ "$NTFY_CONFIG" != "null" ]; then
+      mkdir -p /var/lib/sensor-ntfy
+      echo "$NTFY_CONFIG" > /var/lib/sensor-ntfy/config.json
+      chmod 600 /var/lib/sensor-ntfy/config.json
+      echo "NTFY configuration saved to /var/lib/sensor-ntfy/config.json"
+    else
+      echo "No NTFY configuration found in discovery config"
+    fi
+
     echo "Discovery configuration applied successfully"
   '';
 
@@ -107,9 +120,10 @@ in {
       };
     };
 
-    # Ensure netbird-wt0 directory exists for native module
+    # Ensure directories exist for netbird and sensor-ntfy
     systemd.tmpfiles.rules = [
       "d /var/lib/netbird-wt0 0700 root root -"
+      "d /var/lib/sensor-ntfy 0700 root root -"
     ];
   };
 }

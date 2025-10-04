@@ -8,6 +8,7 @@ NixOS configuration for Raspberry Pi sensors with automatic discovery service pr
 - Reads configuration from `/var/lib/nixos-bootstrap/discovery_config.json`
 - Applies SSH keys to root and nixos users
 - Stores Netbird setup key for VPN enrollment
+- Extracts NTFY config for boot notifications
 - Sets hostname from discovery service
 
 ### Netbird VPN (`netbird.nix`)
@@ -22,6 +23,13 @@ NixOS configuration for Raspberry Pi sensors with automatic discovery service pr
 - Config directory: `/root/.kismet/`
 - Auto-restart every hour for log rotation
 - Default sources: `wlp1s0u1u1`, `wlp1s0u1u2`, `wlp1s0u1u3`, `wlp1s0u1u4`
+
+### Boot Notifications (`boot-notify.nix`)
+- Sends NTFY notification on every boot
+- Reports hostname, uptime, and all network interface IPs
+- VPN connection status included
+- Configuration delivered from discovery service
+- Non-fatal failures (won't block boot)
 
 ## Building and Deployment
 
@@ -54,10 +62,6 @@ nixos-rebuild switch --flake .#sensor
 
 **System Tools:**
 - git, curl, jq, wget, vim, htop, tmux, iotop, nethogs
-
-**Helper Scripts:**
-- `netbird-fix`, `netbird-enroll`, `sensor-status`
-- `gps-check`, `kismet-config`, `kismet-logs`
 
 ## Firewall
 

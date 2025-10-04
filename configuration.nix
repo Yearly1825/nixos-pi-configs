@@ -20,6 +20,7 @@ in
       # Import custom modules
       ./modules/discovery-config.nix
       ./modules/kismet.nix
+      ./modules/boot-notify.nix
     ];
 
   # Use extlinux bootloader (correct for Raspberry Pi)
@@ -119,6 +120,9 @@ in
 
   # Enable discovery configuration service
   services.discovery-config.enable = true;
+
+  # Enable boot notifications via NTFY
+  services.boot-notify.enable = true;
 
   # Enable and configure Netbird VPN using native NixOS module
   services.netbird = {
