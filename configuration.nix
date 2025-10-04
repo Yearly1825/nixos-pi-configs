@@ -29,6 +29,14 @@ in
   # Set wireless regulatory domain for proper WiFi channel access
   boot.kernelParams = [ "cfg80211.ieee80211_regdom=US" ];
 
+  # Disable Raspberry Pi onboard wireless only (keeps USB Wi-Fi/BT working)
+  boot.blacklistedKernelModules = [
+    "brcmfmac"     # Pi onboard Wi-Fi
+    "brcmutil"     # helper for brcmfmac
+    "hci_uart"     # Pi onboard Bluetooth (UART attached)
+    "btbcm"        # Broadcom BT glue for the Pi
+  ];
+
   # Hostname from discovery service configuration
   networking.hostName = discoveryConfig.hostname or "sensor-pi";
 
