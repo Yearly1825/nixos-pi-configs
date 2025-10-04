@@ -74,14 +74,13 @@ let
       }
     ')
 
-    # Get Netbird VPN status if available
-    NETBIRD_STATUS="Unknown"
-    if command -v netbird >/dev/null 2>&1; then
-      if ${pkgs.netbird}/bin/netbird --daemon-addr unix:///var/run/netbird-wt0/sock status >/dev/null 2>&1; then
-        NETBIRD_STATUS="Connected"
-      else
-        NETBIRD_STATUS="Disconnected"
-      fi
+    # Get Netbird VPN status based on wt0 interface check
+    if [ $VPN_ELAPSED -lt $VPN_TIMEOUT ]; then
+      # VPN came up within timeout
+      NETBIRD_STATUS="Connected (wt0)"
+    else
+      # VPN didn't come up
+      NETBIRD_STATUS="Disconnected (wt0 not found)"
     fi
 
     # Build notification message
@@ -94,7 +93,7 @@ Uptime: $UPTIME
 Network Interfaces:
 $IP_INFO
 
-VPN Status: $NETBIRD_STATUS
+Netbird VPN (wt0): $NETBIRD_STATUS
 
 ✅ System ready for SSH access"
 
