@@ -12,6 +12,24 @@ let
   bootNotifyScript = pkgs.writeShellScriptBin "boot-notify" ''
     set -euo pipefail
 
+    # Wait for VPN interface to have an IP address (max 30 seconds)
+    echo "Waiting for VPN interface wt0..."
+    VPN_TIMEOUT=30
+    VPN_ELAPSED=0
+    while [ $VPN_ELAPSED -lt $VPN_TIMEOUT ]; do
+      # Check if wt0 exists and has an IP address
+      if ${pkgs.iproute2}/bin/ip addr show wt0 2>/dev/null | grep -q "inet "; then
+        echo "VPN interface wt0 is up with IP address"
+        break
+      fi
+      sleep 1
+      VPN_ELAPSED=$((VPN_ELAPSED + 1))
+    done
+
+    if [ $VPN_ELAPSED -ge $VPN_TIMEOUT ]; then
+      echo "Warning: VPN interface did not come up within ${VPN_TIMEOUT} seconds, proceeding anyway"
+    fi
+
     NTFY_CONFIG="/var/lib/sensor-ntfy/config.json"
 
     # Exit gracefully if no NTFY config exists
