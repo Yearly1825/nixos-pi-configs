@@ -27,7 +27,7 @@ let
     done
 
     if [ $VPN_ELAPSED -ge $VPN_TIMEOUT ]; then
-      echo "Warning: VPN interface did not come up within ${VPN_TIMEOUT} seconds, proceeding anyway"
+      echo "Warning: VPN interface did not come up within ''${VPN_TIMEOUT} seconds, proceeding anyway"
     fi
 
     NTFY_CONFIG="/var/lib/sensor-ntfy/config.json"
