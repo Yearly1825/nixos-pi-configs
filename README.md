@@ -17,12 +17,15 @@ NixOS configuration for Raspberry Pi sensors with automatic discovery service pr
 - Creates `wt0` interface for VPN traffic
 - Firewall allows UDP 51820 and trusts `wt0` interface
 
-### Kismet Network Monitor (`kismet.nix`)
-- Web UI on port 2501 (username: `kismet`, password: `kismet`)
-- Logs to `/var/lib/kismet/logs/`
-- Config directory: `/root/.kismet/`
-- Auto-restart every hour for log rotation
-- Default sources: `wlp1s0u1u1`, `wlp1s0u1u2`, `wlp1s0u1u3`, `wlp1s0u1u4`
+### Kismet Network Monitor (Native NixOS Module)
+- Web UI on port 2501 (set password on first login)
+- Runs as unprivileged user `kismet` with network capabilities (CAP_NET_RAW + CAP_NET_ADMIN)
+- Logs to `/var/lib/kismet/logs/` with timestamp-based rotation
+- Config directory: `/var/lib/kismet/.kismet/`
+- Auto-restart every hour for log file rotation
+- Monitors 4 USB Wi-Fi interfaces: `wlp1s0u1u{1-4}`
+- GPS integration via GPSD (localhost:2947)
+- Security: Unprivileged user with Linux capabilities, systemd hardening enabled
 
 ### Boot Notifications (`boot-notify.nix`)
 - Sends NTFY notification on every boot

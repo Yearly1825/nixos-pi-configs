@@ -19,7 +19,6 @@ in
       ./hardware-configuration.nix
       # Import custom modules
       ./modules/discovery-config.nix
-      ./modules/kismet.nix
       ./modules/boot-notify.nix
     ];
 
@@ -80,7 +79,7 @@ in
     python3Packages.cryptography
     python3Packages.pip
 
-    # Pre-installed network monitoring tools (speeds up bootstrap)
+    # Network monitoring tools
     kismet
     aircrack-ng
     hcxdumptool
@@ -97,7 +96,16 @@ in
 
     # GPS tools
     gpsd
-    (python3.withPackages (ps: with ps; [ gps3 ]))
+    (python3.withPackages (ps: with ps; [
+      gps3
+      setuptools
+      protobuf
+      numpy
+    ]))
+
+    # RTL-SDR support
+    rtl-sdr
+    rtl_433
 
     # Serial communication
     minicom
@@ -116,7 +124,7 @@ in
     enable = true;
     allowedTCPPorts = [
       22     # SSH
-      2501   # Kismet Web UI
+      # 2501 - Kismet Web UI (handled by services.kismet.httpd.openFirewall)
     ];
   };
 
@@ -220,26 +228,70 @@ in
     };
   };
 
-  # Enable and configure Kismet
-  services.kismet-sensor = {
+  # Kismet wireless network monitoring
+  # Uses native NixOS module with unprivileged user + capabilities
+  # Web UI: http://<ip>:2501 (set password on first login)
+  # Logs: /var/lib/kismet/logs/ (rotated hourly via restart timer)
+  services.kismet = {
     enable = true;
 
-    # Override the entire kismet_site.conf if needed
-    # The default config is defined in the module
-    # Uncomment below to override with your custom configuration:
+    # Server identification
+    serverName = "Sensor-Monitor";
+    serverDescription = "NixOS Pi Sensor Network Monitoring";
 
-    # extraConfig = ''
-    #   log_prefix=/var/lib/kismet/logs/
-    #   log_title=sensor-%Y-%m-%d-%H-%M-%S
-    #
-    #   source=wlan0:type=linuxwifi,hop=true
-    #   source=wlan1:type=linuxwifi,hop=true
-    #
-    #   httpd_bind_address=0.0.0.0
-    #   httpd_port=2501
-    #   httpd_username=admin
-    #   httpd_password=changeme
-    # '';
+    # Web UI configuration
+    httpd = {
+      enable = true;
+      address = "0.0.0.0";
+      port = 2501;
+    };
+
+    # Log types
+    logTypes = [ "kismet" "pcapng" "pcapppi" ];
+
+    # Data directory (same as before)
+    dataDir = "/var/lib/kismet";
+
+    # Structured configuration
+    settings = {
+      # Log configuration with timestamp-based file naming
+      log_prefix = "/var/lib/kismet/logs/";
+      log_title = "Kismet";
+      log_template = "%p/%n-%D-%t-%i.%l";
+    };
+
+    # Interface and GPS configuration (using extraConfig for simplicity)
+    extraConfig = ''
+      # USB Wi-Fi interfaces (4 interfaces on USB hub)
+      source=wlp1s0u1u1
+      source=wlp1s0u1u2
+      source=wlp1s0u1u3
+      source=wlp1s0u1u4
+
+      # GPS integration via GPSD
+      gps=gpsd:host=localhost,port=2947
+    '';
+  };
+
+  # Timer to restart Kismet every hour for log rotation
+  # Creates new timestamped log files on each restart
+  systemd.timers.kismet-restart = {
+    description = "Restart Kismet hourly for log rotation";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "1h";
+      OnUnitActiveSec = "1h";
+      Unit = "kismet-restart.service";
+    };
+  };
+
+  # Service to handle the Kismet restart
+  systemd.services.kismet-restart = {
+    description = "Restart Kismet for log rotation";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.systemd}/bin/systemctl restart kismet.service";
+    };
   };
 
   # Enable GPS daemon
