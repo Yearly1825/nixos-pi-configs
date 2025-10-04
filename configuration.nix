@@ -104,6 +104,8 @@ in
 
     # Wireless tools
     iw
+    hostapd-mana
+    wpa_supplicant
 
     # Netbird VPN client
     netbird
