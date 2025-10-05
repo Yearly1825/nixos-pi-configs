@@ -273,6 +273,11 @@ in
     '';
   };
 
+  # Ensure Kismet log directory exists with correct permissions
+  systemd.tmpfiles.rules = [
+    "d /var/lib/kismet/logs 0755 kismet kismet -"
+  ];
+
   # Timer to restart Kismet every hour for log rotation
   # Creates new timestamped log files on each restart
   systemd.timers.kismet-restart = {
