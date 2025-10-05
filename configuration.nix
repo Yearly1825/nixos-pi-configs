@@ -124,7 +124,7 @@ in
     enable = true;
     allowedTCPPorts = [
       22     # SSH
-      # 2501 - Kismet Web UI (handled by services.kismet.httpd.openFirewall)
+      2501   # Kismet Web UI
     ];
   };
 
