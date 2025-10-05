@@ -256,9 +256,9 @@ in
     extraConfig = ''
       # USB Wi-Fi interfaces (4 interfaces on USB hub) with explicit channel hopping
       source=wlp1s0u1u1:hop_channels=1,6,11
-      source=wlp1s0u1u2:hop_channels=1,6,11
-      source=wlp1s0u1u3:hop_channels=1,6,11
-      source=wlp1s0u1u4:hop_channels=1,6,11
+      #source=wlp1s0u1u2:hop_channels=1,6,11
+      #source=wlp1s0u1u3:hop_channels=1,6,11
+      #source=wlp1s0u1u4:hop_channels=1,6,11
 
       # GPS integration via GPSD
       gps=gpsd:host=localhost,port=2947
