@@ -229,14 +229,11 @@ in
   };
 
   # Kismet wireless network monitoring
-  # TESTING: Running as root to diagnose permissions issues
+  # Uses native NixOS module with unprivileged user + capabilities
   # Web UI: http://<ip>:2501 (set password on first login)
   # Logs: /var/lib/kismet/logs/ (rotated hourly via restart timer)
   services.kismet = {
     enable = true;
-
-    # Keep default kismet user for now
-    # Will override to root via systemd service below
 
     # Server identification
     serverName = "Sensor-Monitor";
@@ -279,10 +276,6 @@ in
   # Ensure Kismet waits for network and GPSD to be available
   systemd.services.kismet.after = [ "network-online.target" "gpsd.service" ];
   systemd.services.kismet.wants = [ "network-online.target" "gpsd.service" ];
-
-  # TESTING: Override to run as root to diagnose permissions
-  systemd.services.kismet.serviceConfig.User = lib.mkForce "root";
-  systemd.services.kismet.serviceConfig.Group = lib.mkForce "root";
 
   # Ensure Kismet log directory exists with correct permissions
   systemd.tmpfiles.rules = [
