@@ -229,11 +229,15 @@ in
   };
 
   # Kismet wireless network monitoring
-  # Uses native NixOS module with unprivileged user + capabilities
+  # TESTING: Running as root to diagnose permissions issues
   # Web UI: http://<ip>:2501 (set password on first login)
   # Logs: /var/lib/kismet/logs/ (rotated hourly via restart timer)
   services.kismet = {
     enable = true;
+
+    # Run as root for testing
+    user = "root";
+    group = "root";
 
     # Server identification
     serverName = "Sensor-Monitor";
