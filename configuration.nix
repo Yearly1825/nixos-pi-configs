@@ -252,14 +252,6 @@ in
     # Data directory (same as before)
     dataDir = "/var/lib/kismet";
 
-    # Structured configuration
-    settings = {
-      # Log configuration with timestamp-based file naming
-      log_prefix = "/var/lib/kismet/logs/";
-      log_title = "Kismet";
-      log_template = "%p/%n-%D-%t-%i.%l";
-    };
-
     # Interface and GPS configuration (using extraConfig for simplicity)
     extraConfig = ''
       # USB Wi-Fi interfaces (4 interfaces on USB hub)
@@ -276,11 +268,6 @@ in
   # Ensure Kismet waits for network and GPSD to be available
   systemd.services.kismet.after = [ "network-online.target" "gpsd.service" ];
   systemd.services.kismet.wants = [ "network-online.target" "gpsd.service" ];
-
-  # Ensure Kismet log directory exists with correct permissions
-  systemd.tmpfiles.rules = [
-    "d /var/lib/kismet/logs 0755 kismet kismet -"
-  ];
 
   # Timer to restart Kismet every hour for log rotation
   # Creates new timestamped log files on each restart
