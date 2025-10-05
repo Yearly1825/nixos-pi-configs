@@ -262,11 +262,8 @@ in
 
     # Interface and GPS configuration (using extraConfig for simplicity)
     extraConfig = ''
-      # USB Wi-Fi interfaces (4 interfaces on USB hub)
-      source=wlp1s0u1u1
-      source=wlp1s0u1u2
+      # USB Wi-Fi interface (adjust based on actual hardware)
       source=wlp1s0u1u3
-      source=wlp1s0u1u4
 
       # GPS integration via GPSD
       gps=gpsd:host=localhost,port=2947
