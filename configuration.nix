@@ -273,6 +273,10 @@ in
     '';
   };
 
+  # Ensure Kismet waits for GPSD to be available
+  systemd.services.kismet.after = [ "gpsd.service" ];
+  systemd.services.kismet.wants = [ "gpsd.service" ];
+
   # Ensure Kismet log directory exists with correct permissions
   systemd.tmpfiles.rules = [
     "d /var/lib/kismet/logs 0755 kismet kismet -"
