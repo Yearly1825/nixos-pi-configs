@@ -273,9 +273,9 @@ in
     '';
   };
 
-  # Ensure Kismet waits for GPSD to be available
-  systemd.services.kismet.after = [ "gpsd.service" ];
-  systemd.services.kismet.wants = [ "gpsd.service" ];
+  # Ensure Kismet waits for network and GPSD to be available
+  systemd.services.kismet.after = [ "network-online.target" "gpsd.service" ];
+  systemd.services.kismet.wants = [ "network-online.target" "gpsd.service" ];
 
   # Ensure Kismet log directory exists with correct permissions
   systemd.tmpfiles.rules = [
